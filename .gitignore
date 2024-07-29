@@ -62,3 +62,5 @@ tools/mmdet3d_plugin
 
 *.log
 .vscode
+
+test/cc/im2col_test

@@ -44,17 +44,18 @@ void cc_conv2d_fwd(float * output, int * output_shape, float * input, int * inpu
                     for (int c_in = 0; c_in < C_in; c_in++) {
                         for (int i = 0; i < kernel_size_h; i++) {
                             for (int j = 0; j < kernel_size_w; j++) {
+                                int h_in = h_out * stride_h + i - padding_h;
+                                int w_in = w_out * stride_w + j - padding_w;
                                 int in_offset = n * C_in * H_in * W_in
                                               + c_in * H_in * W_in
-                                              + (stride_h * h_out + i - padding_h) * W_in
-                                              + (stride_w * w_out + j - padding_w);
+                                              + h_in * W_in
+                                              + w_in;
                                 int weight_offset = c_out * C_in * kernel_size_h * kernel_size_w
                                                   + c_in * kernel_size_h * kernel_size_w
                                                   + i * kernel_size_w
                                                   + j;
                                 float input_val = 0.0f;
-                                if (stride_h * h_out + i >= padding_h && stride_h * h_out + i < H_in + 2 * padding_h && 
-                                    stride_w * w_out + j >= padding_w && stride_w * w_out + j < W_in + 2 * padding_w) {
+                                if (h_in >= 0 && h_in < H_in && w_in >= 0 && w_in < W_in) {
                                     input_val = input[in_offset];
                                 }
                                 out_val += input_val * weight[weight_offset];
