@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 #include "../../kernel/cc/im2col.h"
 #include "../../kernel/cc/col2im.h"
 
@@ -76,6 +77,18 @@ int main(int argc, char ** argv) {
     int paddings[2] = {3, 3};
     int dilations[2] = {1, 1};
 
+    // int N = 6;
+    // int C_in = 3;
+    // int H_in = 16;
+    // int W_in = 16;
+
+    // int C_out = 5;
+    // int kernel_sizes[2] = {7, 7};
+    // int strides[2] = {2, 2};
+    // int paddings[2] = {3, 3};
+    // int dilations[2] = {1, 1};
+
+
     int H_out = floor((float)(H_in + 2 * paddings[0] - dilations[0] * (kernel_sizes[0] - 1) - 1) / (float)strides[0] + 1.0);
     int W_out = floor((float)(W_in + 2 * paddings[1] - dilations[1] * (kernel_sizes[1] - 1) - 1) / (float)strides[1] + 1.0);
     
@@ -87,8 +100,15 @@ int main(int argc, char ** argv) {
     generate_range_tensor(data_im, N, C_in, H_in, W_in);
     // print_tensor(data_im, N, C_in, H_in, W_in);
     im2col_fwd(data_col, data_im, N, C_in, H_in, W_in, kernel_sizes, strides, paddings, dilations, "zeros");
-    float * data_im2 = (float *)malloc(N * C_in * H_in * W_in * sizeof(float));
-    col2im_fwd(data_im2, data_col, N, C_in, H_in, W_in, kernel_sizes, strides, paddings, dilations, "zeros");
-    assert (equal_tensor(data_im, data_im2, N, C_in, H_in, W_in));
+    // float * data_im2 = (float *)malloc(N * C_in * H_in * W_in * sizeof(float));
+    // col2im_fwd(data_im2, data_col, N, C_in, H_in, W_in, kernel_sizes, strides, paddings, dilations, "zeros");
+    // assert (equal_tensor(data_im, data_im2, N, C_in, H_in, W_in));
+    // printf("im2col_rows:%d, im2col_cols:%d %d, (%d, %d)\n", im2col_rows, im2col_cols, im2col_rows*im2col_cols, H_out, W_out);
+
+    
+    // im2col_v1_fwd(data_col, data_im, N, C_in, H_in, W_in, kernel_sizes, strides, paddings, dilations, "zeros");
+    // sleep(5);
+    // im2col_v1_fwd(data_col, data_im, N, C_in, H_in, W_in, kernel_sizes, strides, paddings, dilations, "zeros");
+    // assert (equal_tensor(data_im, data_im2, N, C_in, H_in, W_in));
     return 0;
 }

@@ -64,3 +64,6 @@ tools/mmdet3d_plugin
 .vscode
 
 test/cc/im2col_test
+
+benchmark/cc/build
+benchmark/cc/profile

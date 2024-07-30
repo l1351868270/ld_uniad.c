@@ -26,9 +26,9 @@ void cc_col2im_fwd(float * data_im, const float * data_col, const int N, const i
 
     #pragma omp parallel for collapse(4)
     for (int n = 0; n < N; n++) {
-        for (int c = 0; c < C; c++) {
-            for (int h_out = 0; h_out < H_out; h_out++) {
-                for (int w_out = 0; w_out < W_out; w_out++) {
+        for (int h_out = 0; h_out < H_out; h_out++) {
+            for (int w_out = 0; w_out < W_out; w_out++) {
+                for (int c = 0; c < C; c++) {
                     for (int i = 0; i < ksize_h; i++) {
                         for (int j = 0; j < ksize_w; j++) {
                             int im_h = h_out * stride_h - pad_h + i;
@@ -81,6 +81,7 @@ void col2im_fwd(float * data_col, const float * data_im, const int N, const int 
 #if defined(UNIAD_BENCHMARK) || defined(UNIAD_COL2IM_BENCHMARK)
     clock_t start, end;
     double time_used;
+    start = clock();
 #endif // UNIAD_BENCHMARK
 
     cc_col2im_fwd(data_col, data_im, N, C, H, W, ksizes, strides, paddings, dilations, padding_mode);
