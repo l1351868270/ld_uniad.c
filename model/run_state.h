@@ -11,7 +11,7 @@ typedef struct {
 } RunState;
 
 // https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
-int conv2d_out_shape(int * out_shape, int * in_shape, int out_channel, 
+void conv2d_out_shape(int * out_shape, int * in_shape, int out_channel, 
                      int kernel_size, int stride, int padding, int dilation) {
     int N    = in_shape[0];
     int H_in = in_shape[2];
@@ -99,7 +99,7 @@ void run_state_init(RunState * state, ResNet * resnet, int * in_shape) {
     state->identity = (float *)malloc(sizeof(float) * max_size);
 
 #if defined(UNIAD_RUNSTATE_DEBUG) || defined(UNIAD_DEBUG)
-    printf("[run_state_init]: max_size is: %d, max memory alloc is: %lubytes, %.2fKB, %.2fMB, %.2fGB\n", 
+    printf("[run_state_init]: max_size is: %lu, max memory alloc is: %lubytes, %.2fKB, %.2fMB, %.2fGB\n", 
             max_size, max_size * sizeof(float), max_size * sizeof(float) / 1024.0, 
             max_size * sizeof(float) / 1024.0 / 1024.0, 
             max_size * sizeof(float) / 1024.0 / 1024.0 / 1024.0);

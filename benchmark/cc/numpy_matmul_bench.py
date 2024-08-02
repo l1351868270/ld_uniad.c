@@ -1,6 +1,3 @@
-'''
-Adapted from https://github.com/cuda-mode/lectures/blob/main/lecture_001/
-'''
 
 import time
 import os
@@ -90,15 +87,6 @@ class OpenblasNTMatmul(object):
     def __call__(self, A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
         return self.openblas_nt_matmul_module.openblas_nt_matmul(A, B)
 
-# def trace_handler(prof: torch.autograd.profiler.profile):
-  
-#     print(prof.key_averages().table(
-#         row_limit=-1))
-#     root_path = "./benchmark/cc/profile"
-#     if not os.path.exists(root_path):
-#         os.makedirs(root_path)
-#     prof.export_chrome_trace(f"{root_path}/test_trace_" + str(prof.step_num) + ".json")
-
 def benchmark_matmul():
     # M = 2227200
     # N = 64
@@ -110,9 +98,9 @@ def benchmark_matmul():
 
     A = np.random.rand(M, K).astype(np.float32)
     B = np.random.rand(K, N).astype(np.float32)
-    for i in range(1000):
-        used_time = time_function(np_matmul, A, B)
-        print(f"np.matmul time: {used_time:.5f}")
+
+    used_time = time_function(np_matmul, A, B)
+    print(f"np.matmul time: {used_time:.5f}")
     A = torch.tensor(A)
     B = torch.tensor(B)
     
@@ -126,62 +114,6 @@ def benchmark_matmul():
     openblas_nt_matmul = OpenblasNTMatmul()
     used_time = time_function(openblas_nt_matmul, A, B.transpose(0, 1))
     print(f"openblas_nt_matmul.matmul time: {used_time:.5f}")
-
-    print("=============")
-    print("Profiling torch_matmul")
-    print("=============")
-
-    with torch.autograd.profiler.profile(use_cuda=False) as prof:
-        torch_matmul(A, B)
-    print(prof.key_averages().table(row_limit=-1))
-
-
-    print("=============")
-    print("Profiling openblas_matmul")
-    print("=============")
-
-    with torch.autograd.profiler.profile(use_cuda=False) as prof:
-        openblas_matmul(A, B)
-    print(prof.key_averages().table(row_limit=-1))
-
-    print("=============")
-    print("Profiling openblas_nt_matmul")
-    print("=============")
-
-
-    with torch.autograd.profiler.profile(use_cuda=False) as prof:
-        openblas_nt_matmul(A, B)
-    print(prof.key_averages().table(row_limit=-1))
-
-    root_path = "./benchmark/cc/profile"
-    if not os.path.exists(root_path):
-        os.makedirs(root_path)
-    with torch.profiler.profile(
-                                activities=[
-                                    torch.profiler.ProfilerActivity.CPU,
-                                ],
-
-                                # In this example with wait=1, warmup=1, active=2, repeat=1,
-                                # profiler will skip the first step/iteration,
-                                # start warming up on the second, record
-                                # the third and the forth iterations,
-                                # after which the trace will become available
-                                # and on_trace_ready (when set) is called;
-                                # the cycle repeats starting with the next step
-
-                                schedule=torch.profiler.schedule(
-                                    wait=1,
-                                    warmup=1,
-                                    active=2,
-                                    repeat=1),
-                                # on_trace_ready=trace_handler
-                                on_trace_ready=torch.profiler.tensorboard_trace_handler(root_path)
-                                # used when outputting for tensorboard
-    ) as p:
-        for iter in range(10):
-            torch_matmul(A, B)
-            # send a signal to the profiler that the next iteration has started
-            p.step()
 
 if __name__ == "__main__":
     benchmark_matmul()

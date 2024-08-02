@@ -30,12 +30,22 @@ void ppm_read(PPM * ppm, const char * ppm_path) {
     }
 
     char format[3];
-    fscanf(file, "%s", format);
+    int rcount = 0;
+    rcount = fscanf(file, "%s", format);
+    if (rcount == EOF) {
+        fprintf(stderr, "fscanf format err");
+    }
     fgetc(file);
     int width, height, max_value;
-    fscanf(file, "%d %d", &width, &height);
+    rcount = fscanf(file, "%d %d", &width, &height);
+    if (rcount == EOF) {
+        fprintf(stderr, "fscanf width height err");
+    }
     fgetc(file);
-    fscanf(file, "%d", &max_value);
+    rcount = fscanf(file, "%d", &max_value);
+    if (rcount == EOF) {
+        fprintf(stderr, "fscanf max_value err");
+    }
     fgetc(file);
 
     ppm->width = width;
@@ -43,8 +53,10 @@ void ppm_read(PPM * ppm, const char * ppm_path) {
     ppm->dtype = PPM_UINT8;
 
     ppm->data = (unsigned char *)malloc(width * height * 3 * sizeof(float));
-    fread(ppm->data, sizeof(unsigned char), width * height * 3, file);
-
+    rcount = fread(ppm->data, sizeof(unsigned char), width * height * 3, file);
+    if (rcount != width * height * 3) {
+        fprintf(stderr, "fread ppm data");
+    }
 #ifdef PPM_READ_DEBUG
     printf("format: %s\n", format);
     printf("width: %d\n",  width);
@@ -128,7 +140,7 @@ void ppm_resize(float * dst, const int dst_rows, const int dst_cols,
     double scale_x = 1. / inv_scale_x;
     double scale_y = 1. / inv_scale_y;
 
-    int k, sx, sy, dx, dy;
+    int sx, sy, dx, dy;
     float fx, fy;
 
     for (dy = 0; dy < dst_rows; dy++) {
@@ -225,12 +237,22 @@ void multiview_ppm_read(MultiviewPPM * multiview_ppm, char ** multiview_ppm_path
         }
 
         char format[3];
-        fscanf(file, "%s", format);
+        int rcount = 0;
+        rcount = fscanf(file, "%s", format);
+        if (rcount == EOF) {
+            fprintf(stderr, "[multiview_ppm_read]: fscanf format err");
+        }
         fgetc(file);
         int width, height, max_value;
-        fscanf(file, "%d %d", &width, &height);
+        rcount = fscanf(file, "%d %d", &width, &height);
+        if (rcount == EOF) {
+            fprintf(stderr, "[multiview_ppm_read]: fscanf width height err");
+        }
         fgetc(file);
-        fscanf(file, "%d", &max_value);
+        rcount = fscanf(file, "%d", &max_value);
+        if (rcount == EOF) {
+            fprintf(stderr, "[multiview_ppm_read]: fscanf max_value err");
+        }
         fgetc(file);
         if (i == 0) {
             multiview_ppm->width = width;
@@ -242,7 +264,10 @@ void multiview_ppm_read(MultiviewPPM * multiview_ppm, char ** multiview_ppm_path
             assert(multiview_ppm->height == height);
         }
 
-        fread(multiview_ppm->data + i * width * height * 3, sizeof(unsigned char), width * height * 3, file);
+        rcount = fread(multiview_ppm->data + i * width * height * 3, sizeof(unsigned char), width * height * 3, file);
+        if (rcount != width * height * 3) {
+            fprintf(stderr, "[multiview_ppm_read]: fread data error\n");
+        }
     } 
     
 #ifdef MULTIVIEW_PPM_READ_DEBUG

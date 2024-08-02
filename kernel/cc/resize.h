@@ -15,7 +15,7 @@ void resize_fwd(float * dst, const int dst_rows, const int dst_cols,
     double scale_x = 1. / inv_scale_x;
     double scale_y = 1. / inv_scale_y;
 
-    int k, sx, sy, dx, dy;
+    int sx, sy, dx, dy;
     float fx, fy;
 
     for (dy = 0; dy < dst_rows; dy++) {

@@ -10,6 +10,9 @@
 // format NCHW
 void cc_maxpool2d_fwd(float * output, int * output_shape, float * input, int * input_shape,
                       int * kernel_sizes, int * strides, int * paddings, const char * padding_mode) {
+    if (strcmp(padding_mode, "zeros")) {
+        fprintf(stderr, "[cc_conv2d_fwd]: padding_mode only suppoer zeros\n");
+    }
     int N = input_shape[0];
     int C = input_shape[1];
     int H_in = input_shape[2];
@@ -31,7 +34,6 @@ void cc_maxpool2d_fwd(float * output, int * output_shape, float * input, int * i
         for (int c = 0; c < C; c++) {
             for (int h_out = 0; h_out < H_out; h_out++) {
                 for (int w_out = 0; w_out < W_out; w_out++) {
-                    float out_val = 0.0f;
                     int out_offset = n * C * H_out * W_out
                                    + c * H_out * W_out
                                    + h_out * W_out

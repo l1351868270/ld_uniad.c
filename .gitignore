@@ -63,7 +63,10 @@ tools/mmdet3d_plugin
 *.log
 .vscode
 
-test/cc/im2col_test
+*_test
+
 
 benchmark/cc/build
 benchmark/cc/profile
+
+kernel/cc/matmul/build

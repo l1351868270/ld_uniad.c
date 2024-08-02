@@ -7,17 +7,17 @@ def fp32_write_bottleneck(model_sd, cfg, file):
     pass
 
 def fp32_write_img_backbone_layer(model_sd, format_str, stage_blocks, file):
+    s = 1
     for i, num_blocks in enumerate(stage_blocks):
         for j in range(num_blocks):
-            s = sum(model_sd[format_str.format(i+1, j)].shape)
+            for ms in model_sd[format_str.format(i+1, j)].shape:
+                s *= ms
             assert 4 % s != 0, f'{format_str.format(i+1, j)}, shape: {model_sd[format_str.format(i+1, j)].shape}'
 
     for i, num_blocks in enumerate(stage_blocks):
         for j in range(num_blocks):
-            if 'img_backbone.layer{}.{}.conv2.weight' == format_str:
-                if i >= 2:
-                    write_fp32(model_sd[f'img_backbone.layer{i+1}.{j}.conv2.conv_offset.weight'], file)
             write_fp32(model_sd[format_str.format(i+1, j)], file)
+
 
 def fp32_write_img_backbone(model_sd, cfg, file):
     # conv1 meta
@@ -51,13 +51,16 @@ def fp32_write_img_backbone(model_sd, cfg, file):
     # layer conv2 meta
     for i, num_blocks in enumerate(stage_blocks):
         for j in range(num_blocks):
+            shape = model_sd[f'img_backbone.layer{i+1}.{j}.conv2.weight'].shape
+            file.write(struct.pack('iiii', shape[0], shape[1], shape[2], shape[3]))
+            file.write(struct.pack('iiii', 3, 1, 1, 1))
+    # layer conv2 conv_deform meta
+    for i, num_blocks in enumerate(stage_blocks):
+        for j in range(num_blocks):
             if i >= 2:
                 shape = model_sd[f'img_backbone.layer{i+1}.{j}.conv2.conv_offset.weight'].shape
                 file.write(struct.pack('iiii', shape[0], shape[1], shape[2], shape[3]))
                 file.write(struct.pack('iiii', 3, 1, 1, 1))
-            shape = model_sd[f'img_backbone.layer{i+1}.{j}.conv2.weight'].shape
-            file.write(struct.pack('iiii', shape[0], shape[1], shape[2], shape[3]))
-            file.write(struct.pack('iiii', 3, 1, 1, 1))
     # layer conv3 meta
     for i, num_blocks in enumerate(stage_blocks):
         for j in range(num_blocks):
@@ -75,7 +78,7 @@ def fp32_write_img_backbone(model_sd, cfg, file):
 
     # conv1
     write_fp32(model_sd['img_backbone.conv1.weight'], file)
-    print(f"conv1: {model_sd['img_backbone.conv1.weight']}")
+    # print(f"conv1: {model_sd['img_backbone.conv1.weight']}")
     # bn1
     write_fp32(model_sd['img_backbone.bn1.weight'], file)
     write_fp32(model_sd['img_backbone.bn1.bias'], file)
@@ -98,6 +101,21 @@ def fp32_write_img_backbone(model_sd, cfg, file):
     fp32_write_img_backbone_layer(model_sd, 'img_backbone.layer{}.{}.bn2.bias', stage_blocks, file)
     fp32_write_img_backbone_layer(model_sd, 'img_backbone.layer{}.{}.bn2.running_mean', stage_blocks, file)
     fp32_write_img_backbone_layer(model_sd, 'img_backbone.layer{}.{}.bn2.running_var', stage_blocks, file)
+
+    # layer conv2 conv_deform
+    for i, num_blocks in enumerate(stage_blocks):
+        for j in range(num_blocks):
+            if i >=2:
+                write_fp32(model_sd[f'img_backbone.layer{i+1}.{j}.conv2.conv_offset.weight'], file)
+                print(model_sd[f'img_backbone.layer{i+1}.{j}.conv2.conv_offset.weight'].shape)
+
+    # layer conv2 conv_deform
+    for i, num_blocks in enumerate(stage_blocks):
+        for j in range(num_blocks):
+            if i >=2:
+                write_fp32(model_sd[f'img_backbone.layer{i+1}.{j}.conv2.conv_offset.bias'], file)
+                print(model_sd[f'img_backbone.layer{i+1}.{j}.conv2.conv_offset.bias'].shape)
+
     # layer conv3
     fp32_write_img_backbone_layer(model_sd, 'img_backbone.layer{}.{}.conv3.weight', stage_blocks, file)
     # layer bn3

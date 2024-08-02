@@ -44,7 +44,9 @@ void load_weights(Uniad * model, const char * ckpt) {
 }
 
 void free_weights(Uniad * model) {
-
+    free(model->state->identity);
+    free(model->state->x);
+    free(model->state->xb);
 }
 
 void resnet_fwd(ResNet * model, RunState * s, float * input, int * input_shape) {
@@ -59,7 +61,7 @@ void resnet_fwd(ResNet * model, RunState * s, float * input, int * input_shape) 
     int padding = model->conv1_meta[6];
     int paddings[2] = {model->conv1_meta[6], model->conv1_meta[6]};
     int dilation = model->conv1_meta[7];
-    int dilations[2] = {model->conv1_meta[7], model->conv1_meta[7]};
+    // int dilations[2] = {model->conv1_meta[7], model->conv1_meta[7]};
     conv2d_out_shape(_out_shape, _input_shape, out_channels, kernel_size, stride, padding, dilation);
     printf("_out_shape: (%d, %d, %d, %d)\n", _out_shape[0], _out_shape[1], _out_shape[2], _out_shape[3]);
     fuse_conv2d_batch_norm2d_relu_fwd(s->x, _out_shape, input, _input_shape, model->conv1, model->conv1_meta, NULL, strides, paddings, "zeros",
@@ -69,7 +71,7 @@ void resnet_fwd(ResNet * model, RunState * s, float * input, int * input_shape) 
     kernel_size = model->maxpool_meta[0]; kernel_sizes[0] = model->maxpool_meta[0]; kernel_sizes[1] = model->maxpool_meta[0];
     stride = model->maxpool_meta[1]; strides[0] = model->maxpool_meta[1]; strides[1] = model->maxpool_meta[1];
     padding = model->maxpool_meta[2]; paddings[0] = model->maxpool_meta[2]; paddings[1] = model->maxpool_meta[2];
-    dilation = model->maxpool_meta[3]; dilations[0] = model->maxpool_meta[3]; dilations[1] = model->maxpool_meta[3];
+    dilation = model->maxpool_meta[3]; 
     _input_shape[0] = _out_shape[0]; _input_shape[1] = _out_shape[1]; _input_shape[2] = _out_shape[2]; _input_shape[3] = _out_shape[3];
     conv2d_out_shape(_out_shape, _input_shape, out_channels, kernel_size, stride, padding, dilation);
     printf("_out_shape: (%d, %d, %d, %d)\n", _out_shape[0], _out_shape[1], _out_shape[2], _out_shape[3]);
@@ -84,6 +86,9 @@ void resnet_fwd(ResNet * model, RunState * s, float * input, int * input_shape) 
     int bn1_offset = 0;
     int conv2_offset = 0;
     int bn2_offset = 0;
+    int conv2_deform_meta_offset = 0;
+    int conv2_deform_w_offset = 0;
+    int conv2_deform_b_offset = 0;
     int conv3_offset = 0;
     int bn3_offset = 0;
     int downsample_conv_offset = 0;
@@ -100,7 +105,7 @@ void resnet_fwd(ResNet * model, RunState * s, float * input, int * input_shape) 
             kernel_size = model->bottleneck->conv1_meta[offset + 4]; kernel_sizes[0] = kernel_size; kernel_sizes[1] = kernel_size;
             stride = model->bottleneck->conv1_meta[offset + 5]; strides[0] = stride; strides[1] = stride;
             padding = model->bottleneck->conv1_meta[offset + 6]; paddings[0] = padding; paddings[1] = padding;
-            dilation = model->bottleneck->conv1_meta[offset + 7]; dilations[0] = dilation; dilations[1] = dilation;
+            dilation = model->bottleneck->conv1_meta[offset + 7]; 
             _input_shape[0] = _out_shape[0]; _input_shape[1] = _out_shape[1]; _input_shape[2] = _out_shape[2]; _input_shape[3] = _out_shape[3];
             conv2d_out_shape(_out_shape, _input_shape, out_channels, kernel_size, stride, padding, dilation);
             fuse_conv2d_batch_norm2d_relu_fwd(s->x, _out_shape, s->xb, _input_shape, model->bottleneck->conv1 + conv1_offset, 
@@ -116,7 +121,7 @@ void resnet_fwd(ResNet * model, RunState * s, float * input, int * input_shape) 
                 kernel_size = model->bottleneck->conv2_meta[offset + 4]; kernel_sizes[0] = kernel_size; kernel_sizes[1] = kernel_size;
                 stride = model->bottleneck->conv2_meta[offset + 5]; strides[0] = stride; strides[1] = stride;
                 padding = model->bottleneck->conv2_meta[offset + 6]; paddings[0] = padding; paddings[1] = padding;
-                dilation = model->bottleneck->conv2_meta[offset + 7]; dilations[0] = dilation; dilations[1] = dilation;
+                dilation = model->bottleneck->conv2_meta[offset + 7];
                 _input_shape[0] = _out_shape[0]; _input_shape[1] = _out_shape[1]; _input_shape[2] = _out_shape[2]; _input_shape[3] = _out_shape[3];
                 conv2d_out_shape(_out_shape, _input_shape, out_channels, kernel_size, stride, padding, dilation);
                 fuse_conv2d_batch_norm2d_relu_fwd(s->xb, _out_shape, s->x, _input_shape, model->bottleneck->conv2 + conv2_offset, 
@@ -127,18 +132,21 @@ void resnet_fwd(ResNet * model, RunState * s, float * input, int * input_shape) 
                             *(model->bottleneck->conv2_meta + offset)[2] * (model->bottleneck->conv2_meta + offset)[3];
                 bn2_offset += (model->bottleneck->conv2_meta + offset)[0];
             } else {
-                out_channels = model->bottleneck->conv2_meta[offset]; 
-                kernel_size = model->bottleneck->conv2_meta[offset + 4]; kernel_sizes[0] = kernel_size; kernel_sizes[1] = kernel_size;
-                stride = model->bottleneck->conv2_meta[offset + 5]; strides[0] = stride; strides[1] = stride;
-                padding = model->bottleneck->conv2_meta[offset + 6]; paddings[0] = padding; paddings[1] = padding;
-                dilation = model->bottleneck->conv2_meta[offset + 7]; dilations[0] = dilation; dilations[1] = dilation;
+                out_channels = model->bottleneck->conv2_deform_meta[conv2_deform_meta_offset]; 
+                kernel_size = model->bottleneck->conv2_deform_meta[conv2_deform_meta_offset + 4]; kernel_sizes[0] = kernel_size; kernel_sizes[1] = kernel_size;
+                stride = model->bottleneck->conv2_deform_meta[conv2_deform_meta_offset + 5]; strides[0] = stride; strides[1] = stride;
+                padding = model->bottleneck->conv2_deform_meta[conv2_deform_meta_offset + 6]; paddings[0] = padding; paddings[1] = padding;
+                dilation = model->bottleneck->conv2_deform_meta[conv2_deform_meta_offset + 7];
                 _input_shape[0] = _out_shape[0]; _input_shape[1] = _out_shape[1]; _input_shape[2] = _out_shape[2]; _input_shape[3] = _out_shape[3];
                 conv2d_out_shape(_out_shape, _input_shape, out_channels, kernel_size, stride, padding, dilation);
-                conv2d_fwd(s->xb, _out_shape, s->x, _input_shape, model->bottleneck->conv2 + conv2_offset, 
-                                model->bottleneck->conv2_meta + offset, NULL, strides, paddings, "zeros");
-                conv2_offset += (model->bottleneck->conv2_meta + offset)[0] * (model->bottleneck->conv2_meta + offset)[1]
-                            *(model->bottleneck->conv2_meta + offset)[2] * (model->bottleneck->conv2_meta + offset)[3];
-                bn2_offset += (model->bottleneck->conv2_meta + offset)[0];
+                conv2d_fwd(s->xb, _out_shape, s->x, _input_shape, model->bottleneck->conv2_deform_w + conv2_deform_w_offset, 
+                                model->bottleneck->conv2_deform_meta + conv2_deform_meta_offset, 
+                                model->bottleneck->conv2_deform_b + conv2_deform_b_offset, strides, paddings, "zeros");
+                conv2_deform_w_offset += (model->bottleneck->conv2_deform_meta + conv2_deform_meta_offset)[0]
+                                       * (model->bottleneck->conv2_deform_meta + conv2_deform_meta_offset)[1]
+                                       * (model->bottleneck->conv2_deform_meta + conv2_deform_meta_offset)[2]
+                                       * (model->bottleneck->conv2_deform_meta + conv2_deform_meta_offset)[3];
+                conv2_deform_b_offset += (model->bottleneck->conv2_deform_meta + conv2_deform_meta_offset)[0];
             }
 
             if (offset == 8 * 7) {
@@ -149,7 +157,7 @@ void resnet_fwd(ResNet * model, RunState * s, float * input, int * input_shape) 
             kernel_size = model->bottleneck->conv3_meta[offset + 4]; kernel_sizes[0] = kernel_size; kernel_sizes[1] = kernel_size;
             stride = model->bottleneck->conv3_meta[offset + 5]; strides[0] = stride; strides[1] = stride;
             padding = model->bottleneck->conv3_meta[offset + 6]; paddings[0] = padding; paddings[1] = padding;
-            dilation = model->bottleneck->conv3_meta[offset + 7]; dilations[0] = dilation; dilations[1] = dilation;
+            dilation = model->bottleneck->conv3_meta[offset + 7];
             _input_shape[0] = _out_shape[0]; _input_shape[1] = _out_shape[1]; _input_shape[2] = _out_shape[2]; _input_shape[3] = _out_shape[3];
             conv2d_out_shape(_out_shape, _input_shape, out_channels, kernel_size, stride, padding, dilation);
             fuse_conv2d_batch_norm2d_fwd(s->x, _out_shape, s->xb, _input_shape, model->bottleneck->conv3 + conv3_offset, 
@@ -167,7 +175,7 @@ void resnet_fwd(ResNet * model, RunState * s, float * input, int * input_shape) 
                 kernel_size = model->bottleneck->downsample_conv_meta[downsample_offset + 4]; kernel_sizes[0] = kernel_size; kernel_sizes[1] = kernel_size;
                 stride = model->bottleneck->downsample_conv_meta[downsample_offset + 5]; strides[0] = stride; strides[1] = stride;
                 padding = model->bottleneck->downsample_conv_meta[downsample_offset + 6]; paddings[0] = padding; paddings[1] = padding;
-                dilation = model->bottleneck->downsample_conv_meta[downsample_offset + 7]; dilations[0] = dilation; dilations[1] = dilation;
+                dilation = model->bottleneck->downsample_conv_meta[downsample_offset + 7];
                 _input_shape[0] = N; _input_shape[1] = C; _input_shape[2] = H; _input_shape[3] = W;
                 conv2d_out_shape(_out_shape, _input_shape, out_channels, kernel_size, stride, padding, dilation);
                 fuse_conv2d_batch_norm2d_fwd(s->xb, _out_shape, s->identity, _input_shape, model->bottleneck->downsample_conv + downsample_conv_offset, 
@@ -195,9 +203,7 @@ void resnet_fwd(ResNet * model, RunState * s, float * input, int * input_shape) 
 void uniad_fwd(Uniad * model, float * input, int * input_shape) {
     RunState * s = model->state;
     ResNet * img_backbone = model->img_backbone;
-    resnet_fwd(img_backbone,model->state, input, input_shape);
-
-    
+    resnet_fwd(img_backbone, s, input, input_shape);
 
 }
 

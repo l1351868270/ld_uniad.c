@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include "../../kernel/cc/matmul.h"
+#include <cblas.h>
 
 float frand() {
     return (float)rand() / (float)RAND_MAX;
@@ -61,6 +62,10 @@ int main(int argc, char ** argv) {
     int M = 2227200;
     int N = 64;
     int K = 147;
+    // int M = 2048;
+    // int N = 2048;
+    // int K = 2048;
+
     float * A;
     float * B;
     float * C;
@@ -87,11 +92,11 @@ int main(int argc, char ** argv) {
     // matmul_fwd(C, A, B, M, N, K);
     // print_tensor(C, 16, 16);
 
-    for (int i = 0; i < 10; i++) {
-        _openblas_matmul_fwd(C2, A, B, M, N, K);
+    for (int i = 0; i < 1000; i++) {
+        _blas_matmul_fwd(C2, A, B, M, N, K);
     }
-    // _openblas_matmul_fwd(C2, A, B, M, N, K);
+    // _blas_matmul_fwd(C2, A, B, M, N, K);
     // print_tensor(C2, 16, 16);
-    // _openblas_matmul_fwd(C, A, B, M, N, K);
+    // _blas_matmul_fwd(C, A, B, M, N, K);
     
 }
