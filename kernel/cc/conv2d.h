@@ -4,12 +4,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>
+#include <sys/time.h>
 
 // https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
 // format NCHW
 void cc_conv2d_fwd(float * output, int * output_shape, float * input, int * input_shape,
                 float * weight, int * weight_shape, float * bias, 
                 int * strides, int * paddings, const char * padding_mode) {
+    if (strcmp(padding_mode, "zeros")) {
+        fprintf(stderr, "[cc_conv2d_fwd]: padding_mode only suppoer zeros\n");
+    }
     int N = input_shape[0];
     int C_in = input_shape[1];
     int H_in = input_shape[2];
@@ -24,8 +28,8 @@ void cc_conv2d_fwd(float * output, int * output_shape, float * input, int * inpu
     int stride_h = strides[0];
     int stride_w = strides[1];
 
-    int weight_h = weight_shape[2];
-    int weight_w = weight_shape[3];
+    // int weight_h = weight_shape[2];
+    // int weight_w = weight_shape[3];
 
     int padding_h = paddings[0];
     int padding_w = paddings[1];
@@ -97,56 +101,56 @@ void cc_conv2d_fwd(float * output, int * output_shape, float * input, int * inpu
     }
     printf("]\n");
 
-    // printf("[conv2d_fwd] weight: \n");
-    // printf("[");
-    // for (int n = 0; n < C_out; n++) {
-    //     printf("[");
-    //     for (int c = 0; c < C_in; c++) {
-    //         printf("[");
-    //         // for (int i = 0; i < out_height; i++) {
-    //         for (int h = 0; h < kernel_size_h; h++) {
-    //             printf("(%d, %d, %d): [", n, c, h);
-    //             // for (int j = 0; j < out_width; j++) {
-    //             for (int w = 0; w < kernel_size_w; w++) {
-    //                 int offset = n * C_in * kernel_size_h * kernel_size_w
-    //                                + c * kernel_size_h * kernel_size_w
-    //                                + h * kernel_size_w
-    //                                + w;
-    //                 printf("%.3f, ", weight[offset]);
-    //             }
-    //             printf("],\n");
-    //         }
-    //         printf("],\n");
-    //     }
-    //     printf("],\n");
-    // }
-    // printf("]\n");
+    printf("[conv2d_fwd] weight: \n");
+    printf("[");
+    for (int n = 0; n < C_out; n++) {
+        printf("[");
+        for (int c = 0; c < C_in; c++) {
+            printf("[");
+            // for (int i = 0; i < out_height; i++) {
+            for (int h = 0; h < kernel_size_h; h++) {
+                printf("(%d, %d, %d): [", n, c, h);
+                // for (int j = 0; j < out_width; j++) {
+                for (int w = 0; w < kernel_size_w; w++) {
+                    int offset = n * C_in * kernel_size_h * kernel_size_w
+                                   + c * kernel_size_h * kernel_size_w
+                                   + h * kernel_size_w
+                                   + w;
+                    printf("%.3f, ", weight[offset]);
+                }
+                printf("],\n");
+            }
+            printf("],\n");
+        }
+        printf("],\n");
+    }
+    printf("]\n");
 
 
-    // printf("[conv2d_fwd] input: \n");
-    // printf("[");
-    // for (int n = 0; n < N; n++) {
-    //     printf("[");
-    //     for (int c = 0; c < C_in; c++) {
-    //         printf("[");
-    //         // for (int i = 0; i < out_height; i++) {
-    //         for (int h = 0; h < 16; h++) {
-    //             printf("(%d, %d, %d): [", n, c, h);
-    //             // for (int j = 0; j < out_width; j++) {
-    //             for (int w = 0; w < 16; w++) {
-    //                 int offset = n * C_in * H_in * W_in
-    //                                + c * H_in * W_in
-    //                                + h * W_in
-    //                                + w;
-    //                 printf("%.3f, ", input[offset]);
-    //             }
-    //             printf("],\n");
-    //         }
-    //         printf("],\n");
-    //     }
-    //     printf("],\n");
-    // }
-    // printf("]\n");
+    printf("[conv2d_fwd] input: \n");
+    printf("[");
+    for (int n = 0; n < N; n++) {
+        printf("[");
+        for (int c = 0; c < C_in; c++) {
+            printf("[");
+            // for (int i = 0; i < out_height; i++) {
+            for (int h = 0; h < 16; h++) {
+                printf("(%d, %d, %d): [", n, c, h);
+                // for (int j = 0; j < out_width; j++) {
+                for (int w = 0; w < 16; w++) {
+                    int offset = n * C_in * H_in * W_in
+                                   + c * H_in * W_in
+                                   + h * W_in
+                                   + w;
+                    printf("%.3f, ", input[offset]);
+                }
+                printf("],\n");
+            }
+            printf("],\n");
+        }
+        printf("],\n");
+    }
+    printf("]\n");
 #endif // UNIAD_CONV2D_DEBUG
 }
 

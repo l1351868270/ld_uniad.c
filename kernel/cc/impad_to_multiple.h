@@ -6,11 +6,11 @@
 void impad_to_multiple_fwd(float * dst, float * src, int N, int H, int W, int C, int divisor, float pad_val) {
     int pad_h = ((H + divisor - 1) / divisor) * divisor;
     int pad_w = ((W + divisor - 1) / divisor) * divisor;
-    int padding[4] = {0, 0, pad_w - W, pad_h - H}; // left, top, right, bottom
-    int top = padding[1];
-    int bottom = padding[3];
-    int left = padding[0];
-    int right = padding[2];
+    // int padding[4] = {0, 0, pad_w - W, pad_h - H}; // left, top, right, bottom
+    // int top = padding[1];
+    // int bottom = padding[3];
+    // int left = padding[0];
+    // int right = padding[2];
 
     for (int n = 0; n < N; n++) {
         for (int h = 0; h < pad_h; h++) {

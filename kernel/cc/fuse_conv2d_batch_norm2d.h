@@ -11,6 +11,9 @@ void cc_fuse_conv2d_batch_norm2d_fwd(float * output, int * output_shape, float *
                 float * weight, int * weight_shape, float * bias, 
                 int * strides, int * paddings, const char * padding_mode,
                 const float * gamma, const float * beta, const float * mean, const float * var) {
+    if (strcmp(padding_mode, "zeros")) {
+        fprintf(stderr, "[cc_conv2d_fwd]: padding_mode only suppoer zeros\n");
+    }
     int N = input_shape[0];
     int C_in = input_shape[1];
     int H_in = input_shape[2];
@@ -25,8 +28,8 @@ void cc_fuse_conv2d_batch_norm2d_fwd(float * output, int * output_shape, float *
     int stride_h = strides[0];
     int stride_w = strides[1];
 
-    int weight_h = weight_shape[2];
-    int weight_w = weight_shape[3];
+    // int weight_h = weight_shape[2];
+    // int weight_w = weight_shape[3];
 
     int padding_h = paddings[0];
     int padding_w = paddings[1];

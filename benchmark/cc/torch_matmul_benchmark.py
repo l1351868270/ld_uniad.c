@@ -50,7 +50,7 @@ class OpenblasMatmul(object):
             name="openblas_matmul",
             cpp_sources=[cpp_source],
             functions=["openblas_matmul"],
-            verbose=False,
+            verbose=True,
             build_directory=build_directory,
         )
 
@@ -83,7 +83,7 @@ class OpenblasNTMatmul(object):
             name="openblas_nt_matmul",
             cpp_sources=[cpp_source],
             functions=["openblas_nt_matmul"],
-            verbose=False,
+            verbose=True,
             build_directory=build_directory,
         )
 
@@ -100,16 +100,22 @@ class OpenblasNTMatmul(object):
 #     prof.export_chrome_trace(f"{root_path}/test_trace_" + str(prof.step_num) + ".json")
 
 def benchmark_matmul():
-    M = 2227200
-    N = 64
-    K = 147
+    # M = 2227200
+    # N = 64
+    # K = 147
     
+    M = 2048
+    N = 2048
+    K = 2048
+
     A = np.random.rand(M, K).astype(np.float32)
     B = np.random.rand(K, N).astype(np.float32)
-    used_time = time_function(np_matmul, A, B)
-    print(f"np.matmul time: {used_time:.5f}")
+    for i in range(1000):
+        used_time = time_function(np_matmul, A, B)
+        print(f"np.matmul time: {used_time:.5f}")
     A = torch.tensor(A)
     B = torch.tensor(B)
+    
     used_time = time_function(torch_matmul, A, B)
     print(f"pytorch.matmul time: {used_time:.5f}")
 

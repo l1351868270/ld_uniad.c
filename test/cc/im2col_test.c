@@ -100,15 +100,12 @@ int main(int argc, char ** argv) {
     generate_range_tensor(data_im, N, C_in, H_in, W_in);
     // print_tensor(data_im, N, C_in, H_in, W_in);
     im2col_fwd(data_col, data_im, N, C_in, H_in, W_in, kernel_sizes, strides, paddings, dilations, "zeros");
-    // float * data_im2 = (float *)malloc(N * C_in * H_in * W_in * sizeof(float));
-    // col2im_fwd(data_im2, data_col, N, C_in, H_in, W_in, kernel_sizes, strides, paddings, dilations, "zeros");
-    // assert (equal_tensor(data_im, data_im2, N, C_in, H_in, W_in));
-    // printf("im2col_rows:%d, im2col_cols:%d %d, (%d, %d)\n", im2col_rows, im2col_cols, im2col_rows*im2col_cols, H_out, W_out);
+    float * data_im2 = (float *)malloc(N * C_in * H_in * W_in * sizeof(float));
+    col2im_fwd(data_im2, data_col, N, C_in, H_in, W_in, kernel_sizes, strides, paddings, dilations, "zeros");
+    assert (equal_tensor(data_im, data_im2, N, C_in, H_in, W_in));
+    printf("im2col_rows:%d, im2col_cols:%d, (%d, %d)\n", im2col_rows, im2col_cols, H_out, W_out);
 
-    
-    // im2col_v1_fwd(data_col, data_im, N, C_in, H_in, W_in, kernel_sizes, strides, paddings, dilations, "zeros");
-    // sleep(5);
-    // im2col_v1_fwd(data_col, data_im, N, C_in, H_in, W_in, kernel_sizes, strides, paddings, dilations, "zeros");
-    // assert (equal_tensor(data_im, data_im2, N, C_in, H_in, W_in));
+    im2col_v1_fwd(data_col, data_im, N, C_in, H_in, W_in, kernel_sizes, strides, paddings, dilations, "zeros");
+    assert (equal_tensor(data_im, data_im2, N, C_in, H_in, W_in));
     return 0;
 }

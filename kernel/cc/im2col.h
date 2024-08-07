@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <time.h>
+#include <sys/time.h>
 #include <assert.h>
 
 void cc_im2col_fwd(float * data_col, const float * data_im, const int N, const int C, const int H, const int W, 
@@ -24,7 +24,7 @@ void cc_im2col_fwd(float * data_col, const float * data_im, const int N, const i
     int pad_h = paddings[0];
     int pad_w = paddings[1];
 
-    // #pragma omp parallel for collapse(4)
+    #pragma omp parallel for collapse(4)
     for (int n = 0; n < N; n++) {
         for (int c = 0; c < C; c++) {
             for (int h_out = 0; h_out < H_out; h_out++) {
@@ -258,14 +258,16 @@ void im2col_fwd(float * data_col, const float * data_im, const int N, const int 
                 const int * ksizes, const int * strides, const int * paddings, const int * dilations, 
                 const char * padding_mode) {
 #if defined(UNIAD_BENCHMARK) || defined(UNIAD_IM2COL_BENCHMARK)
-    clock_t start, end;
+    struct timeval start, end;
     double time_used;
-    start = clock();
+    gettimeofday(&start,NULL);
 #endif // UNIAD_BENCHMARK
+
     cc_im2col_fwd(data_col, data_im, N, C, H, W, ksizes, strides, paddings, dilations, padding_mode);
+
 #if defined(UNIAD_BENCHMARK) || defined(UNIAD_IM2COL_BENCHMARK)
-    end = clock();
-    time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    gettimeofday(&end,NULL);
+    time_used = end.tv_sec-start.tv_sec + (end.tv_usec-start.tv_usec)/1000000.0;
     printf("[benchmark][im2col_fwd][cc_im2col_fwd]: NCHW:(%d, %d, %d, %d), in %f secs\n", N, C, H, W, time_used);
 #endif // UNIAD_BENCHMARK
 }
@@ -274,14 +276,16 @@ void im2col_v1_fwd(float * data_col, const float * data_im, const int N, const i
                 const int * ksizes, const int * strides, const int * paddings, const int * dilations, 
                 const char * padding_mode) {
 #if defined(UNIAD_BENCHMARK) || defined(UNIAD_IM2COL_BENCHMARK)
-    clock_t start, end;
+    struct timeval start, end;
     double time_used;
-    start = clock();
+    gettimeofday(&start,NULL);
 #endif // UNIAD_BENCHMARK
+
     cc_im2col_v1_fwd(data_col, data_im, N, C, H, W, ksizes, strides, paddings, dilations, padding_mode);
+
 #if defined(UNIAD_BENCHMARK) || defined(UNIAD_IM2COL_BENCHMARK)
-    end = clock();
-    time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    gettimeofday(&end,NULL);
+    time_used = end.tv_sec-start.tv_sec + (end.tv_usec-start.tv_usec)/1000000.0;
     printf("[benchmark][im2col_v1_fwd][cc_im2col_v1_fwd]: NCHW:(%d, %d, %d, %d), in %f secs\n", N, C, H, W, time_used);
 #endif // UNIAD_BENCHMARK
 }
@@ -290,14 +294,16 @@ void im2col_v2_fwd(float * data_col, const float * data_im, const int N, const i
                 const int * ksizes, const int * strides, const int * paddings, const int * dilations, 
                 const char * padding_mode) {
 #if defined(UNIAD_BENCHMARK) || defined(UNIAD_IM2COL_BENCHMARK)
-    clock_t start, end;
+    struct timeval start, end;
     double time_used;
-    start = clock();
+    gettimeofday(&start,NULL);
 #endif // UNIAD_BENCHMARK
+
     cc_im2col_v2_fwd(data_col, data_im, N, C, H, W, ksizes, strides, paddings, dilations, padding_mode);
+
 #if defined(UNIAD_BENCHMARK) || defined(UNIAD_IM2COL_BENCHMARK)
-    end = clock();
-    time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    gettimeofday(&end,NULL);
+    time_used = end.tv_sec-start.tv_sec + (end.tv_usec-start.tv_usec)/1000000.0;
     printf("[benchmark][im2col_v2_fwd][cc_im2col_v2_fwd]: NCHW:(%d, %d, %d, %d), in %f secs\n", N, C, H, W, time_used);
 #endif // UNIAD_BENCHMARK
 }

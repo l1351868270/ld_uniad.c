@@ -14,6 +14,9 @@ typedef struct {
     float * bn1_rv;
     float * conv2;
     int   * conv2_meta;
+    float * conv2_deform_w;
+    float * conv2_deform_b;
+    int   * conv2_deform_meta;
     float * bn2_w;
     float * bn2_b;
     float * bn2_rm;
@@ -58,6 +61,30 @@ int _img_backbone_get_layer_conv_size(int * meta, int num_stages, int * stage_bl
     return size;
 }
 
+int _img_backbone_get_layer_conv_deform_size(int * meta, int num_stages, int * stage_blocks) {
+    int offset = 0;
+    int size = 0;
+    for (int i = 2; i < num_stages; i++) {
+        for (int j = 0; j < stage_blocks[i]; j++) {
+            size += meta[offset] * meta[offset + 1] * meta[offset + 2] * meta[offset + 3];
+            offset += 8;
+        }
+    }
+    return size;
+}
+
+int _img_backbone_get_layer_deform_bias_size(int * meta, int num_stages, int * stage_blocks) {
+    int offset = 0;
+    int size = 0;
+    for (int i = 2; i < num_stages; i++) {
+        for (int j = 0; j < stage_blocks[i]; j++) {
+            size += meta[offset];
+            offset += 8;
+        }
+    }
+    return size;
+}
+
 int _img_backbone_get_layer_bn_size(int * meta, int num_stages, int * stage_blocks) {
     int offset = 0;
     int size = 0;
@@ -68,8 +95,9 @@ int _img_backbone_get_layer_bn_size(int * meta, int num_stages, int * stage_bloc
         }
     }
     return size;
-
 }
+
+
 
 void _img_backbone_load_conv_meta(int * meta, int num_stages, int * stage_blocks, char * name, FILE * file) {
     int rcount = 0;
@@ -100,6 +128,36 @@ void _img_backbone_load_conv_meta(int * meta, int num_stages, int * stage_blocks
 #endif // UNIAD_LOAD_WEIGHT_DEBUG
 }
 
+void _img_backbone_load_conv_deform_meta(int * meta, int num_stages, int * stage_blocks, char * name, FILE * file) {
+    int rcount = 0;
+    int meta_size = 0;
+    for (int i = 2; i < num_stages; i++) {
+        meta_size += stage_blocks[i] * 8;
+    }
+
+    rcount = fread(meta, sizeof(int), meta_size, file);
+    if (rcount != meta_size) {
+        fprintf(stderr, "Bad read _meta from model file\n");
+        exit(1);
+    }
+#ifdef UNIAD_LOAD_WEIGHT_DEBUG
+    int offset = 0;
+    for (int i = 2; i < num_stages; i++) {
+        printf("%s stage %d: \n", name, i);
+        for (int j = 0; j < stage_blocks[i]; j++) {
+            printf("(%d, %d, %d, %d, %d, %d, %d, %d) ", 
+                   meta[offset + 0], meta[offset + 1], 
+                   meta[offset + 2], meta[offset + 3],
+                   meta[offset + 4], meta[offset + 5],
+                   meta[offset + 6], meta[offset + 7]);
+            offset += 8;
+        }
+        printf("\n");
+    }
+#endif // UNIAD_LOAD_WEIGHT_DEBUG
+}
+
+
 void _img_backbon_load_conv_bn(float * conv, float * bn_w, float * bn_b, float * bn_rm, float * bn_rv, int conv_size, int bn_size, FILE * file) {
     int rcount = 0;
     rcount = fread(conv, sizeof(float), conv_size, file);
@@ -129,6 +187,22 @@ void _img_backbon_load_conv_bn(float * conv, float * bn_w, float * bn_b, float *
         exit(1);
     }
 }
+
+void _img_backbon_load_conv_deform(float * conv_w, float * conv_b, int w_size, int b_size, FILE * file) {
+    int rcount = 0;
+    rcount = fread(conv_w, sizeof(float), w_size, file);
+    if (rcount != w_size) {
+        fprintf(stderr, "Bad read conv weight from model file\n");
+        exit(1);
+    }
+
+    rcount = fread(conv_b, sizeof(float), b_size, file);
+    if (rcount != b_size) {
+        fprintf(stderr, "Bad read conv bias from model file\n");
+        exit(1);
+    }
+}
+
 
 void img_backbone_load_weights(ResNet * model, Config * config, FILE * file){
     model->num_stages = config->num_stages;
@@ -173,6 +247,12 @@ void img_backbone_load_weights(ResNet * model, Config * config, FILE * file){
     _img_backbone_load_conv_meta(model->bottleneck->conv1_meta, config->num_stages, config->stage_blocks, "model->bottleneck->conv1_meta", file);
     model->bottleneck->conv2_meta = (int *)malloc(sizeof(int) * meta_size);
     _img_backbone_load_conv_meta(model->bottleneck->conv2_meta, config->num_stages, config->stage_blocks, "model->bottleneck->conv2_meta", file);
+    int conv2_deform_meta_size = 0;
+    for (int i = 2; i < config->num_stages; i++) {
+        conv2_deform_meta_size += config->stage_blocks[i] * 8;
+    }
+    model->bottleneck->conv2_deform_meta = (int *)malloc(sizeof(int) * conv2_deform_meta_size);
+    _img_backbone_load_conv_deform_meta(model->bottleneck->conv2_deform_meta, config->num_stages, config->stage_blocks, "model->bottleneck->conv2_deform_meta", file);
     model->bottleneck->conv3_meta = (int *)malloc(sizeof(int) * meta_size);
     _img_backbone_load_conv_meta(model->bottleneck->conv3_meta, config->num_stages, config->stage_blocks, "model->bottleneck->conv3_meta", file);
     
@@ -307,6 +387,12 @@ void img_backbone_load_weights(ResNet * model, Config * config, FILE * file){
     model->bottleneck->bn2_rv = (float *)malloc(sizeof(float) * bn_size);
     _img_backbon_load_conv_bn(model->bottleneck->conv2, model->bottleneck->bn2_w, model->bottleneck->bn2_b, 
                               model->bottleneck->bn2_rm, model->bottleneck->bn2_rv, conv_size, bn_size, file);
+
+    int weight_size = _img_backbone_get_layer_conv_deform_size(model->bottleneck->conv2_deform_meta, config->num_stages, config->stage_blocks);
+    model->bottleneck->conv2_deform_w = (float *)malloc(sizeof(float) * weight_size);
+    int bias_size = _img_backbone_get_layer_deform_bias_size(model->bottleneck->conv2_deform_meta, config->num_stages, config->stage_blocks);
+    model->bottleneck->conv2_deform_b = (float *)malloc(sizeof(float) * bias_size);
+    _img_backbon_load_conv_deform(model->bottleneck->conv2_deform_w, model->bottleneck->conv2_deform_b ,weight_size, bias_size, file);
 
     // layer conv3 bn3
     conv_size = _img_backbone_get_layer_conv_size(model->bottleneck->conv3_meta, config->num_stages, config->stage_blocks);

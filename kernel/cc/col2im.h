@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <time.h>
+#include <sys/time.h>
 #include <assert.h>
 
 void cc_col2im_fwd(float * data_im, const float * data_col, const int N, const int C, const int H, const int W, 
@@ -79,16 +79,16 @@ void col2im_fwd(float * data_col, const float * data_im, const int N, const int 
                 const int * ksizes, const int * strides, const int * paddings, const int * dilations, 
                 const char * padding_mode) {
 #if defined(UNIAD_BENCHMARK) || defined(UNIAD_COL2IM_BENCHMARK)
-    clock_t start, end;
+    struct timeval start, end;
     double time_used;
-    start = clock();
+    gettimeofday(&start,NULL);
 #endif // UNIAD_BENCHMARK
 
     cc_col2im_fwd(data_col, data_im, N, C, H, W, ksizes, strides, paddings, dilations, padding_mode);
 
 #if defined(UNIAD_BENCHMARK) || defined(UNIAD_COL2IM_BENCHMARK)
-    end = clock();
-    time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    gettimeofday(&end,NULL);
+    time_used = end.tv_sec-start.tv_sec + (end.tv_usec-start.tv_usec)/1000000.0;
     printf("[benchmark][col2im_fwd][cc_col2im_fwd]: NCHW:(%d, %d, %d, %d), in %f secs\n", N, C, H, W, time_used);
 #endif // UNIAD_BENCHMARK
 }
