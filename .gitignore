@@ -66,7 +66,6 @@ tools/mmdet3d_plugin
 *_test
 *.png
 
-
 benchmark/cc/build
 benchmark/cc/profile
 
@@ -74,3 +73,4 @@ kernel/cc/matmul/build
 kernel/cuda/matmul/build
 kernel/cuda/cutlass
 kernel/cuda/ThunderKittens
+kernel/cc/matmul/build
