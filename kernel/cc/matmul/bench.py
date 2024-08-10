@@ -84,7 +84,8 @@ def benchmark_matmul():
                          build_directory=build_directory,
                          verbose=False,
                          extra_include_paths=['kernel/cc/matmul'],
-                         extra_cflags=['-O3', '-march=native', '-fopenmp'],
+                         extra_cflags=['-O3', '-march=native', '-fopenmp''-std=c++20'],
+                         extra_cuda_cflags=['-O3', '-march=native', '-fopenmp', '-std=c++20']
                     )
     
     # used_time = 0.0

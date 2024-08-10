@@ -182,6 +182,25 @@ __device__ static inline void mma_ABt_base(rt_base<float2, ducks::rt_layout::row
         c.data[2], c.data[3]
     );
 }
+
+__device__ static inline void mma_ABt_base(rt_base<half_2, ducks::rt_layout::row> &d,
+                                     const rt_base<half_2, ducks::rt_layout::row> &a,
+                                     const rt_base<half_2, ducks::rt_layout::row> &b, // in row-major mode
+                                     const rt_base<half_2, ducks::rt_layout::row> &c) {
+    hmma16816(
+        d.data[0], d.data[1],
+        a.data[0], a.data[1], a.data[2], a.data[3],
+        b.data[0], b.data[2], // for some reason this one seems to need to be backwards
+        c.data[0], c.data[1]
+    );
+    hmma16816(
+        d.data[2], d.data[3],
+        a.data[0], a.data[1], a.data[2], a.data[3],
+        b.data[1], b.data[3], // for some reason this one seems to need to be backwards
+        c.data[2], c.data[3]
+    );
+}
+
 /**
  * @brief Base matrix multiply-accumulate operation for row layout with transposed A.
  *
@@ -362,6 +381,35 @@ __device__ static inline void mma_ABt(rt_fl<N, M, ducks::rt_layout::row> &d,
         }
     }
 }
+
+template<int N, int K, int M>
+__device__ static inline void mma_ABt(rt_hf<N, M, ducks::rt_layout::row> &d,
+                                const rt_hf<N, K, ducks::rt_layout::row> &a,
+                                const rt_hf<M, K, ducks::rt_layout::row> &b, // notice row and (M, K) instead of col and (K, M)
+                                const rt_hf<N, M, ducks::rt_layout::row> &c) {
+    #pragma unroll
+    for(int n = 0; n < N; n++) {
+        #pragma unroll
+        for(int m = 0; m < M; m++) {
+            mma_ABt_base(
+                d.tiles[n][m],
+                a.tiles[n][0],
+                b.tiles[m][0],
+                c.tiles[n][m]
+            );
+            #pragma unroll
+            for(int k = 1; k < K; k++) {
+                mma_ABt_base(
+                    d.tiles[n][m],
+                    a.tiles[n][k],
+                    b.tiles[m][k],
+                    d.tiles[n][m]
+                );
+            }
+        }
+    }
+}
+
 /**
  * @brief Matrix multiply-accumulate operation with transposed A.
  *

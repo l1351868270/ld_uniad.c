@@ -93,10 +93,31 @@ def benchmark_matmul():
     manual_matmul = load(name='manual_matmul', 
                          sources=['kernel/cuda/matmul/bench.cu'], 
                          build_directory=build_directory,
-                         verbose=True,
+                         verbose=False,
                          extra_include_paths=['kernel/cuda/matmul', 'kernel/cuda/cutlass/include',
-                                              'kernel/cuda/cutlass/tools/util/include'],
-                         extra_cuda_cflags=['-O3', '-arch=sm_86', '-lcublas'],
+                                              'kernel/cuda/cutlass/tools/util/include', 
+                                              'kernel/cuda/ld_kittens',],
+                        #  extra_cuda_cflags=['-O3', '-arch=sm_86', '-lcublas', '-std=c++20',
+                        #                     '--expt-extended-lambda',
+                        #                     '--expt-relaxed-constexpr',
+                        #                     '-Xcompiler=-Wno-psabi',
+                        #                     '-Xcompiler=-fno-strict-aliasing',
+                        #                     '--use_fast_math',
+                        #                     '-forward-unknown-to-host-compiler',
+                        #                     '-Xptxas=--verbose',
+                        #                     '-Xptxas=--warn-on-spills',
+                        #                     '-std=c++20',
+                        #                     "-U__CUDA_NO_HALF_OPERATORS__",
+                        #                     "-U__CUDA_NO_HALF_CONVERSIONS__",
+                        #                     "-U__CUDA_NO_HALF2_OPERATORS__",
+                        #                     "-U__CUDA_NO_BFLOAT16_CONVERSIONS__",
+                        #                     ],
+                        extra_cuda_cflags=['-O3', '-arch=sm_86',  '-lcublas', '-std=c++20',
+                                            "-U__CUDA_NO_HALF_OPERATORS__",
+                                            "-U__CUDA_NO_HALF_CONVERSIONS__",
+                                            "-U__CUDA_NO_HALF2_OPERATORS__",
+                                            "-U__CUDA_NO_BFLOAT16_CONVERSIONS__",
+                                            ],
                          with_cuda=True,
                     )
     
@@ -107,9 +128,9 @@ def benchmark_matmul():
     blas_gflops = []
     for M, N, K in bench_shapes:
         np.random.seed(0)
-        np_A = np.random.rand(M, K).astype(np.float32)
-        np_B = np.random.rand(K, N).astype(np.float32)
-        np_C = np.zeros((M, N), dtype=np.float32)
+        np_A = np.random.rand(M, K).astype(np.float16)
+        np_B = np.random.rand(K, N).astype(np.float16)
+        np_C = np.zeros((M, N), dtype=np.float16)
         A = torch.tensor(np_A).cuda()
         B = torch.tensor(np_B).cuda()
         BT = B.transpose(0, 1).contiguous()
@@ -121,47 +142,47 @@ def benchmark_matmul():
         np_gflops.append(TFLOPS)
         print(f"np.matmul MNK:{M}*{N}*{K}, FLOPs:{FLOPs}, used_time:{used_time:.5f}ms, TFLOPS: {TFLOPS:.5f}")
 
-        used_time = avg_time_function(torch_matmul, A, B)
-        FLOPs = 2 * M * N * K
-        TFLOPS = FLOPs / 1e9  / used_time 
-        torch_gflops.append(TFLOPS)
-        print(f"pytorch.matmul MNK:{M}*{N}*{K}, FLOPs:{FLOPs}, used_time:{used_time:.5f}ms, TFLOPS: {TFLOPS:.5f}")
-        # print(torch_matmul(A, B))
-
-        # used_time = manual_time_function(manual_matmul.native_mnk_matmul, C, A, BT)
+        # used_time = avg_time_function(torch_matmul, A, B)
         # FLOPs = 2 * M * N * K
-        # TFLOPS = FLOPs / used_time / 1e9
+        # TFLOPS = FLOPs / 1e9  / used_time 
         # torch_gflops.append(TFLOPS)
-        # print(f"native_mnk MNK:{M}*{N}*{K}, FLOPs:{FLOPs}, used_time:{used_time:.5f}ms, TFLOPS: {TFLOPS:.5f}")
+        # print(f"pytorch.matmul MNK:{M}*{N}*{K}, FLOPs:{FLOPs}, used_time:{used_time:.5f}ms, TFLOPS: {TFLOPS:.5f}")
+        # # print(torch_matmul(A, B))
 
-        # used_time = manual_time_function(manual_matmul.native_kmn_matmul, C, A, BT)
+        # # used_time = manual_time_function(manual_matmul.native_mnk_matmul, C, A, BT)
+        # # FLOPs = 2 * M * N * K
+        # # TFLOPS = FLOPs / used_time / 1e9
+        # # torch_gflops.append(TFLOPS)
+        # # print(f"native_mnk MNK:{M}*{N}*{K}, FLOPs:{FLOPs}, used_time:{used_time:.5f}ms, TFLOPS: {TFLOPS:.5f}")
+
+        # # used_time = manual_time_function(manual_matmul.native_kmn_matmul, C, A, BT)
+        # # FLOPs = 2 * M * N * K
+        # # TFLOPS = FLOPs / used_time / 1e9
+        # # torch_gflops.append(TFLOPS)
+        # # print(f"native_kmn MNK:{M}*{N}*{K}, FLOPs:{FLOPs}, used_time:{used_time:.5f}ms, TFLOPS: {TFLOPS:.5f}")
+        # # C.zero_()
+        # # manual_matmul.blas_matmul(C, A, BT)
+        # # print(C)
+        # used_time = avg_manual_time_function(manual_matmul.blas_matmul, C, A, BT)
         # FLOPs = 2 * M * N * K
-        # TFLOPS = FLOPs / used_time / 1e9
-        # torch_gflops.append(TFLOPS)
-        # print(f"native_kmn MNK:{M}*{N}*{K}, FLOPs:{FLOPs}, used_time:{used_time:.5f}ms, TFLOPS: {TFLOPS:.5f}")
-        # C.zero_()
-        # manual_matmul.blas_matmul(C, A, BT)
+        # TFLOPS = FLOPs / 1e9  / used_time 
+        # blas_gflops.append(TFLOPS)
+        # print(f"blas_matmul MNK:{M}*{N}*{K}, FLOPs:{FLOPs}, used_time:{used_time:.5f}ms, TFLOPS: {TFLOPS:.5f}")
         # print(C)
-        used_time = avg_manual_time_function(manual_matmul.blas_matmul, C, A, BT)
-        FLOPs = 2 * M * N * K
-        TFLOPS = FLOPs / 1e9  / used_time 
-        blas_gflops.append(TFLOPS)
-        print(f"blas_matmul MNK:{M}*{N}*{K}, FLOPs:{FLOPs}, used_time:{used_time:.5f}ms, TFLOPS: {TFLOPS:.5f}")
-        print(C)
 
-        used_time = avg_manual_time_function(manual_matmul.cutlass_gemm, C, A, BT)
-        FLOPs = 2 * M * N * K
-        TFLOPS = FLOPs / 1e9  / used_time 
-        blas_gflops.append(TFLOPS)
-        print(f"cutlass_gemm MNK:{M}*{N}*{K}, FLOPs:{FLOPs}, used_time:{used_time:.5f}ms, TFLOPS: {TFLOPS:.5f}")
-        print(C)
+        # used_time = avg_manual_time_function(manual_matmul.cutlass_gemm, C, A, BT)
+        # FLOPs = 2 * M * N * K
+        # TFLOPS = FLOPs / 1e9  / used_time 
+        # blas_gflops.append(TFLOPS)
+        # print(f"cutlass_gemm MNK:{M}*{N}*{K}, FLOPs:{FLOPs}, used_time:{used_time:.5f}ms, TFLOPS: {TFLOPS:.5f}")
+        # print(C)
 
-        used_time = avg_manual_time_function(manual_matmul.cutlass_gemm_v2, C, A, BT)
-        FLOPs = 2 * M * N * K
-        TFLOPS = FLOPs / 1e9  / used_time 
-        blas_gflops.append(TFLOPS)
-        print(f"cutlass_gemm_v2 MNK:{M}*{N}*{K}, FLOPs:{FLOPs}, used_time:{used_time:.5f}ms, TFLOPS: {TFLOPS:.5f}")
-        print(C)
+        # used_time = avg_manual_time_function(manual_matmul.cutlass_gemm_v2, C, A, BT)
+        # FLOPs = 2 * M * N * K
+        # TFLOPS = FLOPs / 1e9  / used_time 
+        # blas_gflops.append(TFLOPS)
+        # print(f"cutlass_gemm_v2 MNK:{M}*{N}*{K}, FLOPs:{FLOPs}, used_time:{used_time:.5f}ms, TFLOPS: {TFLOPS:.5f}")
+        # print(C)
 
 if __name__ == "__main__":
     current_device = torch.cuda.current_device()
