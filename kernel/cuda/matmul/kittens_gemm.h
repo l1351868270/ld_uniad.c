@@ -7,9 +7,12 @@
 #include <cuda_runtime.h>
 #include "kittens.cuh"
 
-#define MMA_M 16
-#define MMA_N 16
-#define MMA_K 16
+namespace bench {
+namespace kittens_gemm {
+
+constexpr int MMA_M = 16;
+constexpr int MMA_N = 16;
+constexpr int MMA_K = 16;
 
 __global__ void cuda_kittens_gemm_kernel(half * C, half * A, half * B, const int M, const int N, const int K) {
     const size_t K_tiles = (K + MMA_K - 1) / MMA_K;
@@ -64,3 +67,5 @@ double kittens_gemm(half * C, half * A, half * B, const int M, const int N, cons
 }
 
 #endif // __LD_UNIAD_KITTENS_GEMM_H__
+} // namespace bench
+} // namespace kittens_gemm

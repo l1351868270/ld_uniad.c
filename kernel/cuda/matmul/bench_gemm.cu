@@ -6,6 +6,7 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 #include "kittens_gemm.h"
+#include "kittens_gemm_v1.h"
 #include "blas.h"
 
 
@@ -127,16 +128,29 @@ int main(int argc, char ** argv) {
     cublasDestroy(handle);
 
     thrust::fill(d_C.begin(), d_C.end(), 0.0);
-    kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
+    bench::kittens_gemm::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
     thrust::copy(d_C.begin(), d_C.end(), h_C1.begin());
     print_tensor(h_C1.data(), M, N);
     for (int i = 0; i < repeat; i++) {
         thrust::fill(d_C.begin(), d_C.end(), 0.0);
-        used_time += kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
+        used_time += bench::kittens_gemm::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
     }
     used_time /= repeat;
     std::cout << "kittens_gemm MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, GFLOPS: "
               << gflops/used_time << std::endl;
+
+    thrust::fill(d_C.begin(), d_C.end(), 0.0);
+    bench::kittens_gemm_v1::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
+    thrust::copy(d_C.begin(), d_C.end(), h_C1.begin());
+    print_tensor(h_C1.data(), M, N);
+    for (int i = 0; i < repeat; i++) {
+        thrust::fill(d_C.begin(), d_C.end(), 0.0);
+        used_time += bench::kittens_gemm::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
+    }
+    used_time /= repeat;
+    std::cout << "kittens_gemm_v1 MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, GFLOPS: "
+              << gflops/used_time << std::endl;
+
     // h_C = d_C;
     constexpr float abs_tol = 5.0e-2f;
     constexpr float rel_tol = 1.0e-2f;
