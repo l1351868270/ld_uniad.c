@@ -1,5 +1,5 @@
-#ifndef __LD_UNIAD_KITTENS_GEMM_V1_H__
-#define __LD_UNIAD_KITTENS_GEMM_V1_H__
+#ifndef __LD_UNIAD_KITTENS_GEMM_V2_H__
+#define __LD_UNIAD_KITTENS_GEMM_V2_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,25 +10,23 @@
 #include "kittens.cuh"
 
 namespace bench {
-namespace kittens_gemm_v1 {
+namespace kittens_gemm_v2 {
 
-constexpr int NUM_WORKERS = 4;
 constexpr int MMA_M = kittens::TILE_DIM;
-constexpr int MMA_N = kittens::TILE_DIM * NUM_WORKERS;
-constexpr int NUM_K = 4;
-constexpr int MMA_K = kittens::TILE_DIM * NUM_K;
+constexpr int MMA_N = kittens::TILE_DIM;
+constexpr int MMA_K = kittens::TILE_DIM;
 constexpr int default_alignment = 1024;
 
-using st_hf_1x4_a = kittens::st_hf<1, NUM_K, kittens::ducks::st_layout::swizzle>;
-using st_hf_1x4_b = kittens::st_hf<1, NUM_K, kittens::ducks::st_layout::swizzle>;
+using st_hf_1x1_a = kittens::st_hf<1, 1, kittens::ducks::st_layout::swizzle>;
+using st_hf_1x1_b = kittens::st_hf<1, 1, kittens::ducks::st_layout::swizzle>;
 using st_hf_1x1_c = kittens::st_hf<1, 1, kittens::ducks::st_layout::swizzle>;
 
-using rt_hf_1x4_a = kittens::rt_hf<1, NUM_K, kittens::ducks::rt_layout::row>;
-using rt_hf_1x4_b = kittens::rt_hf<1, NUM_K, kittens::ducks::rt_layout::row>;
+using rt_hf_1x1_a = kittens::rt_hf<1, 1, kittens::ducks::rt_layout::row>;
+using rt_hf_1x1_b = kittens::rt_hf<1, 1, kittens::ducks::rt_layout::row>;
 using rt_hf_1x1_c = kittens::rt_hf<1, 1, kittens::ducks::rt_layout::row>;
 
 // template <typename T>
-__global__ void cuda_kittens_gemm_kernel_v1(half * C, half * A, half * B, const int M, const int N, const int K) {
+__global__ void cuda_kittens_gemm_kernel_v2(half * C, half * A, half * B, const int M, const int N, const int K) {
     auto warpid = kittens::warpid();
     auto laneid = kittens::laneid();
     const size_t warp_row = blockIdx.y * MMA_M;
@@ -36,12 +34,12 @@ __global__ void cuda_kittens_gemm_kernel_v1(half * C, half * A, half * B, const 
 
     extern __shared__ kittens::alignment_dummy __shm[];
     kittens::shared_allocator<default_alignment> al((int*)&__shm[0]);
-    st_hf_1x4_a (&sA)[2][1] = al.allocate<st_hf_1x4_a, 2, 1>();
-    st_hf_1x4_b (&sB)[2][NUM_WORKERS] = al.allocate<st_hf_1x4_b, 2, NUM_WORKERS>();
-    st_hf_1x1_c (&sC)[NUM_WORKERS] = al.allocate<st_hf_1x1_c, NUM_WORKERS>();
+    st_hf_1x1_a (&sA)[2][1] = al.allocate<st_hf_1x1_a, 2, 1>();
+    st_hf_1x1_b (&sB)[2][1] = al.allocate<st_hf_1x1_b, 2, 1>();
+    st_hf_1x1_c (&sC)[1] = al.allocate<st_hf_1x1_c, 1>();
 
-    rt_hf_1x4_a afrag;
-    rt_hf_1x4_b bfrag;
+    rt_hf_1x1_a afrag;
+    rt_hf_1x1_b bfrag;
     rt_hf_1x1_c cfrag;
     kittens::zero(cfrag);
 
@@ -52,13 +50,12 @@ __global__ void cuda_kittens_gemm_kernel_v1(half * C, half * A, half * B, const 
     __shared__ cuda::barrier<cuda::thread_scope::thread_scope_block> store_barrier;
     if (threadIdx.x == 0) {init(&store_barrier, block.size());}
     block.sync();
-    if (warpid == 0) {
-        kittens::load_async(sA[tic][0], A + warp_row * K + 0 * MMA_K, K, ab_barrier);
-    }
-    kittens::load_async(sB[tic][warpid], B + warp_col * K + 0 * MMA_K, K, ab_barrier);
 
-    // const int a_tile_elements = st_hf_1x4_a::num_elements;
-    // const int b_tile_elements = st_hf_1x4_b::num_elements;
+    kittens::load_async(sA[tic][0], A + warp_row * K + 0 * MMA_K, K, ab_barrier);
+    kittens::load_async(sB[tic][0], B + warp_col * K + 0 * MMA_K, K, ab_barrier);
+
+    // const int a_tile_elements = st_hf_1x1_a::num_elements;
+    // const int b_tile_elements = st_hf_1x1_b::num_elements;
     // const int c_tile_elements = st_hf_1x1_c::num_elements;
 
 
@@ -72,14 +69,12 @@ __global__ void cuda_kittens_gemm_kernel_v1(half * C, half * A, half * B, const 
     for (size_t i = 0; i < n_tiles;i++, tic ^= 1, toc ^=1) {
         ab_barrier.arrive_and_wait();
         if (i < n_tiles - 1) {
-            if (warpid == 0) {
-                kittens::load_async(sA[toc][0], A + warp_row * K + (i + 1) * MMA_K, K, ab_barrier);
-            }
-            kittens::load_async(sB[toc][warpid], B + warp_col * K + (i + 1) * MMA_K, K, ab_barrier);
+            kittens::load_async(sA[toc][0], A + warp_row * K + (i + 1) * MMA_K, K, ab_barrier);
+            kittens::load_async(sB[toc][0], B + warp_col * K + (i + 1) * MMA_K, K, ab_barrier);
         }
 
         kittens::load(afrag, sA[tic][0]);
-        kittens::load(bfrag, sB[tic][warpid]);
+        kittens::load(bfrag, sB[tic][0]);
         kittens::mma_ABt(cfrag, afrag, bfrag, cfrag);
     }
 
@@ -94,16 +89,16 @@ __global__ void cuda_kittens_gemm_kernel_v1(half * C, half * A, half * B, const 
 
 void launch_kittens_gemm(half * C, half * A, half * B, const int M, const int N, const int K) {
     // row-major
-    const dim3 block_dim{128u};
+    const dim3 block_dim{32u};
     const dim3 grid_dim{(unsigned int)(N + MMA_N - 1) / MMA_N,
                         (unsigned int)(M + MMA_M - 1) / MMA_M};
-    int smem_size = 2 * sizeof(st_hf_1x4_a)
-                  + 2 * NUM_WORKERS *sizeof(st_hf_1x4_b)
-                  + NUM_WORKERS * sizeof(st_hf_1x1_c)
+    int smem_size = 2 * sizeof(st_hf_1x1_a)
+                  + 2 *sizeof(st_hf_1x1_b)
+                  + sizeof(st_hf_1x1_c)
                   + 2 * default_alignment;
-    // printf("[benchmark][kittens_gemm_v1][cuda_kittens_gemm] smem_size: %d\n", smem_size);
-    cudaFuncSetAttribute(cuda_kittens_gemm_kernel_v1, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size);
-    cuda_kittens_gemm_kernel_v1<<<grid_dim, block_dim, smem_size>>>(C, A, B, M, N, K);
+    // printf("[benchmark][kittens_gemm_v2][cuda_kittens_gemm] smem_size: %dbytes\n", smem_size);
+    cudaFuncSetAttribute(cuda_kittens_gemm_kernel_v2, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size);
+    cuda_kittens_gemm_kernel_v2<<<grid_dim, block_dim, smem_size>>>(C, A, B, M, N, K);
 }
 
 
@@ -120,11 +115,11 @@ double kittens_gemm(half * C, half * A, half * B, const int M, const int N, cons
     float time_used = 0.0;
     cudaEventElapsedTime(&time_used, start, end);
 #if defined(UNIAD_BENCHMARK) || defined(UNIAD_BLAS_MATMUL_BENCHMARK)
-    printf("[benchmark][kittens_gemm_v1][cuda_kittens_gemm]: MNK:(%d, %d, %d), in %f ms\n", M, N, K, time_used);
+    printf("[benchmark][kittens_gemm_v2][cuda_kittens_gemm]: MNK:(%d, %d, %d), in %f ms\n", M, N, K, time_used);
 #endif // UNIAD_BENCHMARK
     return time_used;
 }
 
-#endif // __LD_UNIAD_KITTENS_GEMM_V1_H__
+#endif // __LD_UNIAD_KITTENS_GEMM_V2_H__
 } // namespace bench
-} // namespace kittens_gemm_v1
+} // namespace kittens_gemm_v2

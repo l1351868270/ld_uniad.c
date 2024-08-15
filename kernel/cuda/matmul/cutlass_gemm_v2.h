@@ -14,6 +14,9 @@
 #include "cutlass/util/GPU_Clock.hpp"
 #include "cutlass/util/helper_cuda.hpp"
 
+namespace bench {
+namespace cutlass_gemm_v2 {
+
 template <class ProblemShape, class CtaTiler,
           class TA, class AStride, class ASmemLayout, class TiledCopyA,
           class TB, class BStride, class BSmemLayout, class TiledCopyB,
@@ -22,7 +25,7 @@ template <class ProblemShape, class CtaTiler,
 __global__ static
 __launch_bounds__(decltype(size(TiledMma{}))::value)
 void
-gemm_device_v2(ProblemShape shape_MNK, CtaTiler cta_tiler,
+cuda_cutlass_gemm_kernel_v2(ProblemShape shape_MNK, CtaTiler cta_tiler,
             TA const* A, AStride dA, ASmemLayout sA_layout, TiledCopyA copy_a,
             TB const* B, BStride dB, BSmemLayout sB_layout, TiledCopyB copy_b,
             TC      * C, CStride dC, CSmemLayout          , TiledMma mma,
@@ -63,7 +66,8 @@ gemm_device_v2(ProblemShape shape_MNK, CtaTiler cta_tiler,
 
   // Get the appropriate blocks for this thread block
   auto cta_coord = make_coord(blockIdx.x, blockIdx.y, _);              // (m,n,k)
-  Tensor gA = local_tile(mA, cta_tiler, cta_coord, Step<_1, X,_1>{});  // (BLK_M,BLK_K,k)
+  // Tensor gA = local_tile(mA, cta_tiler, cta_coord, Step<_1, X,_1>{});  // (BLK_M,BLK_K,k)
+  Tensor gA = local_tile(mA, select<0,2>(cta_tiler), make_coord(blockIdx.x, _));  // (BLK_M,BLK_K,k)
   Tensor gB = local_tile(mB, cta_tiler, cta_coord, Step< X,_1,_1>{});  // (BLK_N,BLK_K,k)
   Tensor gC = local_tile(mC, cta_tiler, cta_coord, Step<_1,_1, X>{});  // (BLK_M,BLK_N)
 
@@ -91,27 +95,6 @@ gemm_device_v2(ProblemShape shape_MNK, CtaTiler cta_tiler,
   CUTE_STATIC_ASSERT_V(size<2>(tBgB) == size<2>(tBsB));                // CPY_K
 
   //
-  // PREFETCH
-  //
-
-  auto K_PIPE_MAX = size<3>(tAsA);
-
-  // Total count of tiles
-  int k_tile_count = size<3>(tAgA);
-  // Current tile index in gmem to read from
-  int k_tile_next = 0;
-
-  // Start async loads for all pipes but the last
-  CUTE_UNROLL
-  for (int k_pipe = 0; k_pipe < K_PIPE_MAX-1; ++k_pipe) {
-    copy(copy_a, tAgA(_,_,_,k_tile_next), tAsA(_,_,_,k_pipe));
-    copy(copy_b, tBgB(_,_,_,k_tile_next), tBsB(_,_,_,k_pipe));
-    cp_async_fence();
-    --k_tile_count;
-    if (k_tile_count > 0) { ++k_tile_next; }
-  }
-
-  //
   // Define A/B partitioning and C accumulators
   //
 
@@ -120,10 +103,10 @@ gemm_device_v2(ProblemShape shape_MNK, CtaTiler cta_tiler,
   Tensor tCsB = thr_mma.partition_B(sB);                               // (MMA,MMA_N,MMA_K,PIPE)
   Tensor tCgC = thr_mma.partition_C(gC);                               // (MMA,MMA_M,MMA_N)
 
-  // Allocate registers for pipelining
-  Tensor tCrA = thr_mma.make_fragment_A(tCsA(_,_,_,0));                // (MMA,MMA_M,MMA_K)
-  Tensor tCrB = thr_mma.make_fragment_B(tCsB(_,_,_,0));                // (MMA,MMA_N,MMA_K)
-  // Allocate the accumulators -- same size as the projected data
+  // // Allocate registers for pipelining
+  Tensor tCrA = thr_mma.make_fragment_A(tCsA(_,_,_));                // (MMA,MMA_M,MMA_K)
+  Tensor tCrB = thr_mma.make_fragment_B(tCsB(_,_,_));                // (MMA,MMA_N,MMA_K)
+  // // Allocate the accumulators -- same size as the projected data
   Tensor tCrC = thr_mma.make_fragment_C(tCgC);                         // (MMA,MMA_M,MMA_N)
 
   CUTE_STATIC_ASSERT_V(  shape(tCrA) ==   shape(tCsA));                // (MMA,MMA_M,MMA_K)
@@ -166,105 +149,56 @@ gemm_device_v2(ProblemShape shape_MNK, CtaTiler cta_tiler,
     print("tCrA : "); print(tCrA); print("\n");
     print("tCrB : "); print(tCrB); print("\n");
     print("tCrC : "); print(tCrC); print("\n");
+
+    print("K_BLOCK_MAX : "); print(size<2>(tCrA));print("\n");
+    print("k_tile_count : "); print(size<3>(tAgA));print("\n");
   }
 #endif
 
-#if 1
-
-  // Current pipe index in smem to read from
-  int smem_pipe_read  = 0;
-  // Current pipe index in smem to write to
-  int smem_pipe_write = K_PIPE_MAX-1;
-
-  // Pipe slice
-  Tensor tCsA_p = tCsA(_,_,_,smem_pipe_read);
-  Tensor tCsB_p = tCsB(_,_,_,smem_pipe_read);
-
+// #if 1
+  // Total count of tiles
+  int k_tile_count = size<3>(tAgA);
   // Size of the register pipeline
   auto K_BLOCK_MAX = size<2>(tCrA);
 
-  // PREFETCH register pipeline
-  if (K_BLOCK_MAX > 1) {
-    // Wait until our first prefetched tile is loaded in
-    cp_async_wait<K_PIPE_MAX-2>();
+  CUTE_UNROLL
+  for (int k_tile = 0; k_tile < k_tile_count; k_tile++) {
+    // Copy gmem to smem before computing gemm on each k-pipe
+    copy(copy_a, tAgA(_,_,_,k_tile), tAsA(_,_,_));
+    copy(copy_b, tBgB(_,_,_,k_tile), tBsB(_,_,_));
+    cp_async_fence();
+    cp_async_wait<0>();
     __syncthreads();
 
-    // Prefetch the first rmem from the first k-tile
-    copy(tCsA_p(_,_,Int<0>{}), tCrA(_,_,Int<0>{}));
-    copy(tCsB_p(_,_,Int<0>{}), tCrB(_,_,Int<0>{}));
-  }
-
-  //
-  // PIPELINED MAIN LOOP
-  // TUTORIAL: Example of a gemm loop that pipelines shared memory using SM80's cp.async instructions
-  //           and explicit pipelines in shared memory.
-  //   Data is read from global(k_tile_next) to shared(smem_pipe_write).
-  //   Data is read from shared(smem_pipe_read) to registers(k_block_next).
-  //   Data is computed on registers(b_block).
-  //
-  //   This allows all copies and compute to overlap:
-  //     Copy from gmem->smem can overlap with copies from smem->rmem and compute on rmem.
-  //     Copy from smem->rmem can overlap with compute on rmem.
-  //
-
-  CUTE_NO_UNROLL
-  while (k_tile_count > -(K_PIPE_MAX-1))
-  {
     CUTE_UNROLL
     for (int k_block = 0; k_block < K_BLOCK_MAX; ++k_block)
     {
-      if (k_block == K_BLOCK_MAX - 1)
-      {
-        // Slice the smem_pipe_read smem
-        tCsA_p = tCsA(_,_,_,smem_pipe_read);
-        tCsB_p = tCsB(_,_,_,smem_pipe_read);
-
-        // Commit the smem for smem_pipe_read
-        cp_async_wait<K_PIPE_MAX-2>();
-        __syncthreads();
-      }
 
       // Load A, B shmem->regs for k_block+1
-      auto k_block_next = (k_block + Int<1>{}) % K_BLOCK_MAX;      // static
-      copy(tCsA_p(_,_,k_block_next), tCrA(_,_,k_block_next));
-      copy(tCsB_p(_,_,k_block_next), tCrB(_,_,k_block_next));
-      // Copy gmem to smem before computing gemm on each k-pipe
-      if (k_block == 0)
-      {
-        copy(copy_a, tAgA(_,_,_,k_tile_next), tAsA(_,_,_,smem_pipe_write));
-        copy(copy_b, tBgB(_,_,_,k_tile_next), tBsB(_,_,_,smem_pipe_write));
-        cp_async_fence();
-
-        // Advance the gmem tile
-        --k_tile_count;
-        if (k_tile_count > 0) { ++k_tile_next; }
-
-        // Advance the smem pipe
-        smem_pipe_write = smem_pipe_read;
-        ++smem_pipe_read;
-        smem_pipe_read = (smem_pipe_read == K_PIPE_MAX) ? 0 : smem_pipe_read;
-      }
+      copy(tCsA(_,_,k_block), tCrA(_,_,k_block));
+      copy(tCsB(_,_,k_block), tCrB(_,_,k_block));
+      __syncthreads();
       // Thread-level register gemm for k_block
       gemm(mma, tCrA(_,_,k_block), tCrB(_,_,k_block), tCrC);
     }
-
   }
 
-#endif
+// #endif
 
   //
   // Epilogue
   //
 
-  axpby(alpha, tCrC, beta, tCgC);
+  // axpby(alpha, tCrC, beta, tCgC);
+  // axpby(1.0, tCrC, 0.0, tCgC);
+  copy(tCrC, tCgC);
 }
 
 
-// Setup params for a NT GEMM
 template <class TA, class TB, class TC,
           class Alpha, class Beta>
 void
-gemm_tn_v2(int m, int n, int k,
+launch_kittens_gemm(int m, int n, int k,
         Alpha alpha,
         TA const* A, int ldA,
         TB const* B, int ldB,
@@ -288,35 +222,81 @@ gemm_tn_v2(int m, int n, int k,
   // Define CTA tile sizes (static)
   auto bM = Int<128>{};
   auto bN = Int<128>{};
-  auto bK = Int<  8>{};
+  auto bK = Int< 32>{};
   auto cta_tiler = make_shape(bM, bN, bK);                   // (BLK_M, BLK_N, BLK_K)
-  auto bP = Int<3>{};  // Pipeline
 
-  // Define the smem layouts (static)
-  auto sA_atom = make_layout(make_shape (      bM,          bK),
-                             make_stride(Int<1>{}, bM+Int<1>{}));   // (m,k) -> smem_idx; padded m-major
-  auto sB_atom = make_layout(make_shape (      bN,          bK),
-                             make_stride(Int<1>{}, bN+Int<1>{}));   // (n,k) -> smem_idx; padded n-major
-  auto sA = tile_to_shape(sA_atom, make_shape(bM, bK, bP));
-  auto sB = tile_to_shape(sA_atom, make_shape(bN, bK, bP));
-  auto sC = make_layout(make_shape(bM, bN));                        // (m,n) -> smem_idx
+  auto sC = make_layout(make_shape(bM, bN));                 // (m,n) -> smem_idx
+
+  using SmemLayoutAtom = decltype(composition(
+        Swizzle<3, 3, 3>{},
+        make_layout(make_shape(Int<8>{}, Int<bK>{}),
+                    make_stride(Int<bK>{}, Int<1>{}))));
+  using SmemLayoutA = decltype(tile_to_shape(SmemLayoutAtom{},
+                                            make_shape(Int<bM>{}, Int<bK>{})));
+  using SmemLayoutB = decltype(tile_to_shape(SmemLayoutAtom{},
+                                            make_shape(Int<bN>{}, Int<bK>{})));
+  SmemLayoutA sA;
+  SmemLayoutB sB;
 
   // Define the thread layouts (static)
+  using g2s_copy_op = SM80_CP_ASYNC_CACHEGLOBAL<cute::uint128_t>;
+  using g2s_copy_traits = Copy_Traits<g2s_copy_op>;
+  using g2s_copy_atom = Copy_Atom<g2s_copy_traits, TA>;
+  using G2SCopyA =
+      decltype(make_tiled_copy(g2s_copy_atom{},
+                                make_layout(make_shape(Int<32>{}, Int<4>{}),
+                                            make_stride(Int<4>{}, Int<1>{})),
+                                make_layout(make_shape(Int<1>{}, Int<8>{}))));
+  G2SCopyA copyA;
+  G2SCopyA copyB;
 
-  TiledCopy copyA = make_tiled_copy(Copy_Atom<SM80_CP_ASYNC_CACHEALWAYS<TA>, TA>{},
-                                    Layout<Shape<_32,_8>,Stride<_8,_1>>{}, // Thr layout 32x8 k-major
-                                    Layout<Shape< _1,_1>>{});              // Val layout  1x1
-  TiledCopy copyB = make_tiled_copy(Copy_Atom<SM80_CP_ASYNC_CACHEALWAYS<TB>, TB>{},
-                                    Layout<Shape<_32,_8>,Stride<_8,_1>>{}, // Thr layout 32x8 k-major
-                                    Layout<Shape< _1,_1>>{});              // Val layout  1x1
+  using mma_op = SM80_16x8x16_F16F16F16F16_TN;
+  using mma_traits = MMA_Traits<mma_op>;
+  using mma_atom = MMA_Atom<mma_traits>;
+  static constexpr int kMmaEURepeatM = 2;
+  static constexpr int kMmaEURepeatN = 2;
+  static constexpr int kMmaEURepeatK = 1;
 
-  TiledMMA mmaC = make_tiled_mma(UniversalFMA<TC,TA,TB>{},
-                                 Layout<Shape<_16,_16,_1>>{});  // 16x16x1 TiledMMA
+  using mma_atom_shape = mma_traits::Shape_MNK;
+  static constexpr int kMmaPM = 1 * kMmaEURepeatM * get<0>(mma_atom_shape{});
+  static constexpr int kMmaPN = 2 * kMmaEURepeatN * get<1>(mma_atom_shape{});
+  static constexpr int kMmaPK = 2 * kMmaEURepeatK * get<2>(mma_atom_shape{});
+  using MMA_EU_RepeatT = decltype(make_layout(make_shape(
+      Int<kMmaEURepeatM>{}, Int<kMmaEURepeatN>{}, Int<kMmaEURepeatK>{})));
+  using MMA_P_T = Tile<Int<kMmaPM>, Int<kMmaPN>, Int<kMmaPK>>;
+  
+  using MMA = decltype(make_tiled_mma(mma_atom{}, MMA_EU_RepeatT{}, MMA_P_T{}));
+
+  MMA mmaC;
 
 #if 0
+  printf("sA_atom: \n");
+  print(sA_atom);
+  printf("\n");
+  printf("sB_atom: \n");
+  print(sB_atom);
+  printf("\n");
+  printf("sA: \n");
+  print(sA);
+  printf("\n");
+  printf("sB: \n");
+  print(sB);
+  printf("\n");
+  printf("copyA: \n");
   print(copyA);
+  printf("copyB: \n");
   print(copyB);
+  printf("mmaC: \n");
   print(mmaC);
+  printf("size(mmaC): \n");
+  print(size(mmaC));
+  printf("\n");
+  printf("size(copyA): \n");
+  print(size(copyA));
+  printf("\n");
+  printf("cta_tiler: "); print(cta_tiler); printf("\n");
+  printf("cta_tiler: "); print(select<0,1>(cta_tiler)); printf("\n");
+  printf("smem_size: %d\n", cosize_v<SmemLayoutAtom> + cosize_v<SmemLayoutAtom>);
 #endif
 
 #if 0
@@ -328,7 +308,15 @@ gemm_tn_v2(int m, int n, int k,
   dim3 dimBlock(size(mmaC));
   dim3 dimGrid(size(ceil_div(M, bM)),
                size(ceil_div(N, bN)));
-  gemm_device_v2<<<dimGrid, dimBlock, 0, stream>>>
+  int smem_size = cosize_v<SmemLayoutAtom> + cosize_v<SmemLayoutAtom>;
+
+  cudaFuncSetAttribute(cuda_cutlass_gemm_kernel_v2<decltype(prob_shape), decltype(cta_tiler),
+                                                  TA, decltype(dA), decltype(sA), decltype(copyA),
+                                                  TB, decltype(dB), decltype(sB), decltype(copyB),
+                                                  TC, decltype(dC), decltype(sC), decltype(mmaC),
+                                                  decltype(alpha), decltype(beta)>, 
+                      cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size);
+  cuda_cutlass_gemm_kernel_v2<<<dimGrid, dimBlock, 0, stream>>>
       (prob_shape, cta_tiler,
        A, dA, sA, copyA,
        B, dB, sB, copyB,
@@ -336,14 +324,17 @@ gemm_tn_v2(int m, int n, int k,
        alpha, beta);
 }
 
-
-float cutlass_gemm_v2(float * C, const float * A, float * B, const int M, const int N, const int K) {
+template <typename T>
+float cutlass_gemm(T * C, const T * A, T * B, const int M, const int N, const int K) {
     cudaEvent_t start, end;
     cudaEventCreate(&start);
     cudaEventCreate(&end);
     cudaEventRecord(start, 0);
+    
+    float alpha = 1.0;
+    float beta = 0.0;
 
-    gemm_tn_v2(N, M, K, 1.0, B, K, A, K, 0.0, C, N, 0);
+    launch_kittens_gemm(M, N, K, alpha, A, K, B, K, beta, C, N, 0);
 
     cudaEventRecord(end, 0);
     cudaEventSynchronize(end);
@@ -351,4 +342,7 @@ float cutlass_gemm_v2(float * C, const float * A, float * B, const int M, const 
     cudaEventElapsedTime(&time_used, start, end);
     return time_used;
 }
+
+} // namespace cutlass_gemm_v2
+} // namespace bench
 #endif // __LD_UNIAD_CUTLASS_GEMM_V2_H__
