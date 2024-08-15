@@ -14,6 +14,9 @@
 #include "cutlass/util/GPU_Clock.hpp"
 #include "cutlass/util/helper_cuda.hpp"
 
+namespace bench {
+namespace cutlass_gemm {
+
 template <class ProblemShape, class CtaTiler,
           class TA, class AStride, class ASmemLayout, class TiledCopyA,
           class TB, class BStride, class BSmemLayout, class TiledCopyB,
@@ -351,5 +354,8 @@ float cutlass_gemm(float * C, const float * A, float * B, const int M, const int
     cudaEventElapsedTime(&time_used, start, end);
     return time_used;
 }
+
+} // namespace cutlass_gemm
+} // namespace bench
 
 #endif // __LD_UNIAD_CUTLASS_GEMM_H__
