@@ -140,7 +140,7 @@ int main(int argc, char ** argv) {
             used_time += blas_matmul<half>(&handle, d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
         }
         used_time /= repeat;
-        std::cout << "cublas_gemm MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, GFLOPS: "
+        std::cout << "cublas_gemm MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, TFLOPS: "
                 << gflops/used_time << std::endl;
         cublasDestroy(handle);
         outFile << gflops/used_time << ",";
@@ -155,7 +155,7 @@ int main(int argc, char ** argv) {
             used_time += bench::cutlass_gemm_v2::cutlass_gemm<half>(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
         }
         used_time /= repeat;
-        std::cout << "cutlass_gemm_v2 MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, GFLOPS: "
+        std::cout << "cutlass_gemm_v2 MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, TFLOPS: "
                 << gflops/used_time << std::endl;
         outFile << gflops/used_time << ",";
         if (check_value(abs_tol, rel_tol, h_C.data(), h_C1.data(), M, N)) {
@@ -164,82 +164,82 @@ int main(int argc, char ** argv) {
             std::cout << "Test FAILED" << std::endl;
         }
 
-        thrust::fill(d_C.begin(), d_C.end(), 0.0);
-        bench::kittens_gemm::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
-        thrust::copy(d_C.begin(), d_C.end(), h_C1.begin());
-        // print_tensor(h_C1.data(), M, N);
-        used_time = 0.0;
-        for (int i = 0; i < repeat; i++) {
-            thrust::fill(d_C.begin(), d_C.end(), 0.0);
-            used_time += bench::kittens_gemm::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
-        }
-        used_time /= repeat;
-        std::cout << "kittens_gemm MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, GFLOPS: "
-                << gflops/used_time << std::endl;
-        outFile << gflops/used_time << ",";
-        if (check_value(abs_tol, rel_tol, h_C.data(), h_C1.data(), M, N)) {
-            std::cout << "Test PASSED" << std::endl;
-        } else {
-            std::cout << "Test FAILED" << std::endl;
-        }
+        // thrust::fill(d_C.begin(), d_C.end(), 0.0);
+        // bench::kittens_gemm::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
+        // thrust::copy(d_C.begin(), d_C.end(), h_C1.begin());
+        // // print_tensor(h_C1.data(), M, N);
+        // used_time = 0.0;
+        // for (int i = 0; i < repeat; i++) {
+        //     thrust::fill(d_C.begin(), d_C.end(), 0.0);
+        //     used_time += bench::kittens_gemm::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
+        // }
+        // used_time /= repeat;
+        // std::cout << "kittens_gemm MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, GFLOPS: "
+        //         << gflops/used_time << std::endl;
+        // outFile << gflops/used_time << ",";
+        // if (check_value(abs_tol, rel_tol, h_C.data(), h_C1.data(), M, N)) {
+        //     std::cout << "Test PASSED" << std::endl;
+        // } else {
+        //     std::cout << "Test FAILED" << std::endl;
+        // }
 
-        thrust::fill(d_C.begin(), d_C.end(), 0.0);
-        bench::kittens_gemm_v1::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
-        thrust::copy(d_C.begin(), d_C.end(), h_C1.begin());
-        // print_tensor(h_C1.data(), M, N);
-        used_time = 0.0;
-        for (int i = 0; i < repeat; i++) {
-            thrust::fill(d_C.begin(), d_C.end(), 0.0);
-            used_time += bench::kittens_gemm_v1::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
-        }
-        used_time /= repeat;
-        std::cout << "kittens_gemm_v1 MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, GFLOPS: "
-                << gflops/used_time << std::endl;
-        outFile << gflops/used_time << ",";
-        if (check_value(abs_tol, rel_tol, h_C.data(), h_C1.data(), M, N)) {
-            std::cout << "Test PASSED" << std::endl;
-        } else {
-            std::cout << "Test FAILED" << std::endl;
-        }
+        // thrust::fill(d_C.begin(), d_C.end(), 0.0);
+        // bench::kittens_gemm_v1::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
+        // thrust::copy(d_C.begin(), d_C.end(), h_C1.begin());
+        // // print_tensor(h_C1.data(), M, N);
+        // used_time = 0.0;
+        // for (int i = 0; i < repeat; i++) {
+        //     thrust::fill(d_C.begin(), d_C.end(), 0.0);
+        //     used_time += bench::kittens_gemm_v1::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
+        // }
+        // used_time /= repeat;
+        // std::cout << "kittens_gemm_v1 MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, GFLOPS: "
+        //         << gflops/used_time << std::endl;
+        // outFile << gflops/used_time << ",";
+        // if (check_value(abs_tol, rel_tol, h_C.data(), h_C1.data(), M, N)) {
+        //     std::cout << "Test PASSED" << std::endl;
+        // } else {
+        //     std::cout << "Test FAILED" << std::endl;
+        // }
 
-        thrust::fill(d_C.begin(), d_C.end(), 0.0);
-        bench::kittens_gemm_v2::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
-        thrust::copy(d_C.begin(), d_C.end(), h_C1.begin());
-        // print_tensor(h_C1.data(), M, N);
-        used_time = 0.0;
-        for (int i = 0; i < repeat; i++) {
-            thrust::fill(d_C.begin(), d_C.end(), 0.0);
-            used_time += bench::kittens_gemm_v2::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
-        }
-        used_time /= repeat;
-        std::cout << "kittens_gemm_v2 MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, GFLOPS: "
-                << gflops/used_time << std::endl;
-        outFile << gflops/used_time << ",";
-        if (check_value(abs_tol, rel_tol, h_C.data(), h_C1.data(), M, N)) {
-            std::cout << "Test PASSED" << std::endl;
-        } else {
-            std::cout << "Test FAILED" << std::endl;
-        }
+        // thrust::fill(d_C.begin(), d_C.end(), 0.0);
+        // bench::kittens_gemm_v2::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
+        // thrust::copy(d_C.begin(), d_C.end(), h_C1.begin());
+        // // print_tensor(h_C1.data(), M, N);
+        // used_time = 0.0;
+        // for (int i = 0; i < repeat; i++) {
+        //     thrust::fill(d_C.begin(), d_C.end(), 0.0);
+        //     used_time += bench::kittens_gemm_v2::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
+        // }
+        // used_time /= repeat;
+        // std::cout << "kittens_gemm_v2 MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, GFLOPS: "
+        //         << gflops/used_time << std::endl;
+        // outFile << gflops/used_time << ",";
+        // if (check_value(abs_tol, rel_tol, h_C.data(), h_C1.data(), M, N)) {
+        //     std::cout << "Test PASSED" << std::endl;
+        // } else {
+        //     std::cout << "Test FAILED" << std::endl;
+        // }
 
-        thrust::fill(d_C.begin(), d_C.end(), 0.0);
-        bench::kittens_gemm_v3::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
-        thrust::copy(d_C.begin(), d_C.end(), h_C1.begin());
-        // print_tensor(h_C1.data(), M, N);
-        used_time = 0.0;
-        for (int i = 0; i < repeat; i++) {
-            thrust::fill(d_C.begin(), d_C.end(), 0.0);
-            used_time += bench::kittens_gemm_v3::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
-        }
-        used_time /= repeat;
-        std::cout << "kittens_gemm_v3 MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, GFLOPS: "
-                << gflops/used_time << std::endl;
-        outFile << gflops/used_time << ",";
+        // thrust::fill(d_C.begin(), d_C.end(), 0.0);
+        // bench::kittens_gemm_v3::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
+        // thrust::copy(d_C.begin(), d_C.end(), h_C1.begin());
+        // // print_tensor(h_C1.data(), M, N);
+        // used_time = 0.0;
+        // for (int i = 0; i < repeat; i++) {
+        //     thrust::fill(d_C.begin(), d_C.end(), 0.0);
+        //     used_time += bench::kittens_gemm_v3::kittens_gemm(d_C.data().get(), d_A.data().get(), d_B.data().get(), M, N, K);
+        // }
+        // used_time /= repeat;
+        // std::cout << "kittens_gemm_v3 MNK:" << M << "*" << N << "*" << K << ", GFLOPs:" << gflops <<", used_time: " << used_time << "ms, GFLOPS: "
+        //         << gflops/used_time << std::endl;
+        // outFile << gflops/used_time << ",";
 
-        if (check_value(abs_tol, rel_tol, h_C.data(), h_C1.data(), M, N)) {
-            std::cout << "Test PASSED" << std::endl;
-        } else {
-            std::cout << "Test FAILED" << std::endl;
-        }
+        // if (check_value(abs_tol, rel_tol, h_C.data(), h_C1.data(), M, N)) {
+        //     std::cout << "Test PASSED" << std::endl;
+        // } else {
+        //     std::cout << "Test FAILED" << std::endl;
+        // }
 
         outFile << "\n";
     }

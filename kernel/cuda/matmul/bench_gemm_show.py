@@ -24,7 +24,7 @@ if __name__ == "__main__":
     # ax.set_xticks(matrix_size[::1])
     ax.tick_params(axis='x', labelrotation=90)
     fig.tight_layout()
-    ax.set(xlabel='MNK', ylabel='Performance GFLOPS/sec.', title="Matmul Benchmark")
+    ax.set(xlabel='MNK', ylabel='Performance TFLOPS/sec.', title="Matmul Benchmark")
     ax.grid()
     ax.legend()
     
