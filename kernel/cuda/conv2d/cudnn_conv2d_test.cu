@@ -1,3 +1,4 @@
+// ./build/cudnn_conv2d_test 4 232 400 256 256 3 3 0 0 1 1 1 1
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -7,6 +8,7 @@
 #include <thrust/device_vector.h>
 #include <cudnn.h>
 #include "cudnn_conv2d.h"
+#include "cudnn_conv2d_nchw_best.h"
 
 void print_tensor(half * tensor, int N, int C, int H, int W) {
     printf("[");
@@ -117,19 +119,34 @@ int main(int argc, char ** argv) {
     double used_time = 0.0;
     int repeat = 10;
 
+    // thrust::fill(d_y.begin(), d_y.end(), 0.0);
+    // bench::cudnn_conv2d::cudnn_conv2d<half>(d_y.data().get(), d_x.data().get(), d_w.data().get(), N, H, W, C, 
+    //                    K, R, S, pad_h, pad_w, U, V, dilation_h, dilation_w);
+    // thrust::copy(d_y.begin(), d_y.end(), h_y.begin());
+    // // print_tensor(h_y.data(), N, H, W, C);
+    // used_time = 0.0;
+    // for (int i = 0; i < repeat; i++) {
+    //     thrust::fill(d_y.begin(), d_y.end(), 0.0);
+    //     used_time += bench::cudnn_conv2d::cudnn_conv2d<half>(d_y.data().get(), d_x.data().get(), d_w.data().get(), N, H, W, C, 
+    //                    K, R, S, pad_h, pad_w, U, V, dilation_h, dilation_w);
+    // }
+    // used_time /= repeat;
+    // printf("cudnn_conv2d %dx%dx%dx%d %dx%dx%dx%d %dx%dx%dx%d, arithmetic_intensity:%f, im2col MNK: %dx%dx%d GFLOPs:%f, used_time: %fms, TFLOPS: %f\n", N, C, H, W,  
+    //        K, C, R, S, N, K, P, Q, arithmetic_intensity, v_M, v_N, v_K, gflops, used_time, gflops/used_time);
+
     thrust::fill(d_y.begin(), d_y.end(), 0.0);
-    cudnn_conv2d<half>(d_y.data().get(), d_x.data().get(), d_w.data().get(), N, H, W, C, 
+    bench::cudnn_conv2d_nchw_best::cudnn_conv2d<half>(d_y.data().get(), d_x.data().get(), d_w.data().get(), N, H, W, C, 
                        K, R, S, pad_h, pad_w, U, V, dilation_h, dilation_w);
     thrust::copy(d_y.begin(), d_y.end(), h_y.begin());
-    print_tensor(h_y.data(), N, H, W, C);
+    // print_tensor(h_y.data(), N, H, W, C);
     used_time = 0.0;
     for (int i = 0; i < repeat; i++) {
         thrust::fill(d_y.begin(), d_y.end(), 0.0);
-        used_time += cudnn_conv2d<half>(d_y.data().get(), d_x.data().get(), d_w.data().get(), N, H, W, C, 
+        used_time += bench::cudnn_conv2d_nchw_best::cudnn_conv2d<half>(d_y.data().get(), d_x.data().get(), d_w.data().get(), N, H, W, C, 
                        K, R, S, pad_h, pad_w, U, V, dilation_h, dilation_w);
     }
     used_time /= repeat;
-    printf("cudnn_conv2d %dx%dx%dx%d %dx%dx%dx%d %dx%dx%dx%d, arithmetic_intensity:%f, im2col MNK: %dx%dx%d GFLOPs:%f, used_time: %fms, TFLOPS: %f\n", N, C, H, W,  
+    printf("cudnn_conv2d_nchw_best %dx%dx%dx%d %dx%dx%dx%d %dx%dx%dx%d, arithmetic_intensity:%f, im2col MNK: %dx%dx%d GFLOPs:%f, used_time: %fms, TFLOPS: %f\n", N, C, H, W,  
            K, C, R, S, N, K, P, Q, arithmetic_intensity, v_M, v_N, v_K, gflops, used_time, gflops/used_time);
 }
 

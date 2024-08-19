@@ -1,5 +1,5 @@
-#ifndef __LD_UNIAD_CUDNN_CONV2D_V1_H__
-#define __LD_UNIAD_CUDNN_CONV2D_V1_H__
+#ifndef __LD_UNIAD_CUDNN_CONV2D_H__
+#define __LD_UNIAD_CUDNN_CONV2D_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,16 +8,19 @@
 #include <cudnn.h>
 
 namespace bench {
-namespace cudnn_conv2d {
+namespace cudnn_conv2d_v2 {
 
 template <typename T>
-void cuda_cudnn_conv2d_v1(cudnnHandle_t * handle,
+void cuda_cudnn_conv2d(cudnnHandle_t * handle,
                        const void *alpha,
                        const cudnnTensorDescriptor_t * xDesc,
                         const void *x,
                         const cudnnFilterDescriptor_t * wDesc,
                         const void *w,
                         const cudnnConvolutionDescriptor_t * convDesc,
+                        cudnnConvolutionFwdAlgo_t * algo,
+                        void *workSpace,
+                        size_t workSpaceSizeInBytes,
                         const void *beta,
                         const cudnnTensorDescriptor_t * yDesc,
                         void *y) {
@@ -29,7 +32,7 @@ void cuda_cudnn_conv2d_v1(cudnnHandle_t * handle,
         err = cudnnConvolutionForward(*handle, alpha, 
                                 *xDesc, x, 
                                 *wDesc, w, 
-                                *convDesc, CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM, nullptr, 0, beta, 
+                                *convDesc, *algo, workSpace, workSpaceSizeInBytes, beta, 
                                 *yDesc, y);
         if (err != CUDNN_STATUS_SUCCESS) {
             printf("cudnnConvolutionForward failed: %s\n", cudnnGetErrorString(err));
@@ -104,7 +107,7 @@ double cudnn_conv2d(T * y, T * x, const T * w, int N, int H, int W, int C,
         printf("cudnnCreateConvolutionDescriptor failed: %s\n", cudnnGetErrorString(err));
         exit(1);
     }
-    err = cudnnSetConvolution2dDescriptor(convDesc, pad_h, pad_w, U, V, dilation_h, dilation_w, CUDNN_CONVOLUTION, CUDNN_DATA_HALF);
+    err = cudnnSetConvolution2dDescriptor(convDesc, pad_h, pad_w, U, V, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, CUDNN_DATA_HALF);
     if (err != CUDNN_STATUS_SUCCESS) {
         printf("cudnnSetConvolution2dDescriptor failed: %s\n", cudnnGetErrorString(err));
         exit(1);
@@ -136,6 +139,38 @@ double cudnn_conv2d(T * y, T * x, const T * w, int N, int H, int W, int C,
         printf("cudnnSetTensor4dDescriptor failed: %s\n", cudnnGetErrorString(err));
         exit(1);
     }
+
+    int perf_count;
+    cudnnConvolutionFwdAlgoPerf_t perf_results[CUDNN_CONVOLUTION_FWD_ALGO_COUNT];
+    // cudnnConvolutionFwdAlgo_t convolution_algorithm;
+    err = cudnnGetConvolutionForwardAlgorithm_v7(handle,
+                                                   xDesc,
+                                                   wDesc,
+                                                   convDesc,
+                                                   yDesc,
+                                                   CUDNN_CONVOLUTION_FWD_ALGO_COUNT,
+                                                   &perf_count,
+                                                   perf_results);
+
+    if (err != CUDNN_STATUS_SUCCESS) {
+        printf("cudnnGetConvolutionForwardAlgorithm_v7 failed: %s\n", cudnnGetErrorString(err));
+        exit(1);
+    }
+
+    // int index = 5;
+    cudnnConvolutionFwdAlgo_t bestAlgo = CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED;
+    // printf("bestAlgo: %d, time: %f, memory:%ld\n", bestAlgo, algoPerfResults[index].time,algoPerfResults[index].memory);
+    void *workSpace;
+    size_t workSpaceSizeInBytes;
+    
+    err = cudnnGetConvolutionForwardWorkspaceSize(handle, xDesc, wDesc, convDesc, yDesc, bestAlgo, &workSpaceSizeInBytes);
+    if (err != CUDNN_STATUS_SUCCESS) {
+        printf("cudnnGetConvolutionForwardWorkspaceSize failed: %s\n", cudnnGetErrorString(err));
+        exit(1);
+    }
+    printf("workSpaceSizeInBytes: %ld\n", workSpaceSizeInBytes);
+    cudaMalloc(&workSpace, workSpaceSizeInBytes);
+
     const float alpha = 1.0;
     const float beta = 0.0;
 
@@ -144,7 +179,7 @@ double cudnn_conv2d(T * y, T * x, const T * w, int N, int H, int W, int C,
     cudaEventCreate(&end);
     cudaEventRecord(start, 0);
 
-    cuda_cudnn_conv2d_v1<T>(&handle, &alpha, &xDesc, x, &wDesc, w, &convDesc, &beta, &yDesc, y);
+    cuda_cudnn_conv2d<T>(&handle, &alpha, &xDesc, x, &wDesc, w, &convDesc, &bestAlgo, workSpace, workSpaceSizeInBytes, &beta, &yDesc, y);
     // cudnnDeviceSynchronize();
     cudaEventRecord(end, 0);
     cudaEventSynchronize(end);
@@ -177,13 +212,15 @@ double cudnn_conv2d(T * y, T * x, const T * w, int N, int H, int W, int C,
         exit(1);
     }
 
+    cudaFree(workSpace);
+
 #if defined(UNIAD_BENCHMARK) || defined(UNIAD_CUDNN_CONV2D_BENCHMARK)
     printf("[benchmark][blas_matmul][cuda_blas_matmul]: MNK:(%d, %d, %d), in %f ms\n", M, N, K, time_used);
 #endif // UNIAD_BENCHMARK
     return time_used;
 }
 
-} // namespace cudnn_conv2d
+} // namespace cudnn_conv2d_v2
 } // namespace bench
 
-#endif // __LD_UNIAD_CUDNN_CONV2D_V1_H__
+#endif // __LD_UNIAD_CUDNN_CONV2D_H__

@@ -1,5 +1,5 @@
-#ifndef __LD_UNIAD_CUDNN_CONV2D_V1_H__
-#define __LD_UNIAD_CUDNN_CONV2D_V1_H__
+#ifndef __LD_UNIAD_CUDNN_CONV2D_NCHW_H__
+#define __LD_UNIAD_CUDNN_CONV2D_NCHW_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,10 +8,10 @@
 #include <cudnn.h>
 
 namespace bench {
-namespace cudnn_conv2d {
+namespace cudnn_conv2d_nchw {
 
 template <typename T>
-void cuda_cudnn_conv2d_v1(cudnnHandle_t * handle,
+void cuda_cudnn_conv2d_nchw(cudnnHandle_t * handle,
                        const void *alpha,
                        const cudnnTensorDescriptor_t * xDesc,
                         const void *x,
@@ -82,7 +82,7 @@ double cudnn_conv2d(T * y, T * x, const T * w, int N, int H, int W, int C,
         printf("cudnnCreateTensorDescriptor failed: %s\n", cudnnGetErrorString(err));
         exit(1);
     }
-    err = cudnnSetTensor4dDescriptor(xDesc, CUDNN_TENSOR_NHWC, CUDNN_DATA_HALF, N, C, H, W);
+    err = cudnnSetTensor4dDescriptor(xDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF, N, C, H, W);
     if (err != CUDNN_STATUS_SUCCESS) {
         printf("cudnnSetTensor4dDescriptor failed: %s\n", cudnnGetErrorString(err));
         exit(1);
@@ -93,7 +93,7 @@ double cudnn_conv2d(T * y, T * x, const T * w, int N, int H, int W, int C,
         printf("cudnnCreateFilterDescriptor failed: %s\n", cudnnGetErrorString(err));
         exit(1);
     }
-    err = cudnnSetFilter4dDescriptor(wDesc, CUDNN_DATA_HALF, CUDNN_TENSOR_NHWC, K, C, R, S);
+    err = cudnnSetFilter4dDescriptor(wDesc, CUDNN_DATA_HALF, CUDNN_TENSOR_NCHW, K, C, R, S);
     if (err != CUDNN_STATUS_SUCCESS) {
         printf("cudnnSetFilter4dDescriptor failed: %s\n", cudnnGetErrorString(err));
         exit(1);
@@ -104,7 +104,7 @@ double cudnn_conv2d(T * y, T * x, const T * w, int N, int H, int W, int C,
         printf("cudnnCreateConvolutionDescriptor failed: %s\n", cudnnGetErrorString(err));
         exit(1);
     }
-    err = cudnnSetConvolution2dDescriptor(convDesc, pad_h, pad_w, U, V, dilation_h, dilation_w, CUDNN_CONVOLUTION, CUDNN_DATA_HALF);
+    err = cudnnSetConvolution2dDescriptor(convDesc, pad_h, pad_w, U, V, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, CUDNN_DATA_HALF);
     if (err != CUDNN_STATUS_SUCCESS) {
         printf("cudnnSetConvolution2dDescriptor failed: %s\n", cudnnGetErrorString(err));
         exit(1);
@@ -131,7 +131,7 @@ double cudnn_conv2d(T * y, T * x, const T * w, int N, int H, int W, int C,
     }
     int P = floor((H + 2 * pad_h - dilation_h * (R - 1) - 1) / U + 1);
     int Q = floor((W + 2 * pad_w - dilation_w * (S - 1) - 1) / V + 1);
-    err = cudnnSetTensor4dDescriptor(yDesc, CUDNN_TENSOR_NHWC, CUDNN_DATA_HALF, N, K, P, Q);
+    err = cudnnSetTensor4dDescriptor(yDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_HALF, N, K, P, Q);
     if (err != CUDNN_STATUS_SUCCESS) {
         printf("cudnnSetTensor4dDescriptor failed: %s\n", cudnnGetErrorString(err));
         exit(1);
@@ -144,7 +144,7 @@ double cudnn_conv2d(T * y, T * x, const T * w, int N, int H, int W, int C,
     cudaEventCreate(&end);
     cudaEventRecord(start, 0);
 
-    cuda_cudnn_conv2d_v1<T>(&handle, &alpha, &xDesc, x, &wDesc, w, &convDesc, &beta, &yDesc, y);
+    cuda_cudnn_conv2d_nchw<T>(&handle, &alpha, &xDesc, x, &wDesc, w, &convDesc, &beta, &yDesc, y);
     // cudnnDeviceSynchronize();
     cudaEventRecord(end, 0);
     cudaEventSynchronize(end);
@@ -183,7 +183,7 @@ double cudnn_conv2d(T * y, T * x, const T * w, int N, int H, int W, int C,
     return time_used;
 }
 
-} // namespace cudnn_conv2d
+} // namespace cudnn_conv2d_nchw
 } // namespace bench
 
-#endif // __LD_UNIAD_CUDNN_CONV2D_V1_H__
+#endif // __LD_UNIAD_CUDNN_CONV2D_NCHW_H__
