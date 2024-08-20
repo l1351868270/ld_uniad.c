@@ -75,3 +75,5 @@ kernel/cuda/matmul/*csv
 kernel/cuda/cutlass
 kernel/cuda/ThunderKittens
 kernel/cc/matmul/build
+
+kernel/cuda/conv2d/build
