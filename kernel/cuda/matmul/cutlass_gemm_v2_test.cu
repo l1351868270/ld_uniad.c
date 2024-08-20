@@ -2,7 +2,7 @@
 ncu --csv --log-file build/bench.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./build/bench_gemm 4096 4096 4096
 ncu --csv --log-file build/bench_bank_conflicts.csv --metrics  l1tex__data_bank_conflicts_pipe_lsu_mem_shared,l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum,l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_st.sum ./build/bench_gemm 4096 4096 4096
 
-ncu -f --set full -o build/bench_gemm_report ./build/bench_gemm 4096 4096 4096
+ncu -f --set full -o build/cutlass_gemm_v2_test_report ./build/cutlass_gemm_v2_test 371200 256 256
 */
 #include <stdio.h>
 #include <stdlib.h>

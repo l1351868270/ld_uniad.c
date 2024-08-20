@@ -91,8 +91,8 @@ def bench_conv2d():
     W = 400
 
     K = 256
-    R = 1
-    S = 1
+    R = 3
+    S = 3
 
     pad_h = 0
     pad_w = 0
@@ -146,7 +146,7 @@ def bench_conv2d():
     x = x.to(memory_format=torch.channels_last)
     y2 = conv2d(x)
     y2 = y2.permute(0, 2, 3, 1).contiguous()
-    # print(f"torch.conv2d channels_last: {y2}")
+    print(f"torch.conv2d channels_last: {y2}")
     # used_time = avg_time_function(conv2d, x, repeat)
     # print(f"torch.conv2d channels_last {N}x{C}x{H}x{W} {K}x{C}x{R}x{S} {N}x{K}x{P}x{Q}, arithmetic_intensity:{arithmetic_intensity:.3f}, im2col MNK: {v_M}x{v_N}x{v_K} GFLOPs:{gflops:.3f}, used_time:{used_time:.3f}ms, TFLOPS:{gflops/used_time:.3f}")
     
@@ -155,7 +155,7 @@ def bench_conv2d():
     y_nhwc = torch.zeros(N, P, Q, K).cuda().half()
     y_nhwc.fill_(0.0)
     manual_conv2d.cudnn_conv2d_nhwc(y_nhwc, x_nhwc, w_nhwc, pad_h, pad_w, U, V, dilation_h, dilation_w)
-    # print(f"cudnn_conv2d_nhwc: {y_nhwc}")
+    print(f"cudnn_conv2d_nhwc: {y_nhwc}")
     # used_time = manual_avg_time_function(manual_conv2d.cudnn_conv2d_nhwc, y_nhwc, x_nhwc, w_nhwc, pad_h, pad_w, U, V, dilation_h, dilation_w, repeat)
     # print(f"cudnn_conv2d_nhwc {N}x{C}x{H}x{W} {K}x{C}x{R}x{S} {N}x{K}x{P}x{Q}, arithmetic_intensity:{arithmetic_intensity:.3f}, im2col MNK: {v_M}x{v_N}x{v_K} GFLOPs:{gflops:.3f}, used_time:{used_time:.3f}ms, TFLOPS:{gflops/used_time:.3f}")
 

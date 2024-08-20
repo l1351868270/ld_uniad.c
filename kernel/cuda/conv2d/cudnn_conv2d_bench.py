@@ -91,8 +91,8 @@ def bench_conv2d():
     W = 400
 
     K = 256
-    R = 1
-    S = 1
+    R = 3
+    S = 3
 
     pad_h = 0
     pad_w = 0
