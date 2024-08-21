@@ -165,7 +165,7 @@ double cudnn_conv2d(T * y, T * x, const T * w, int N, int H, int W, int C,
         printf("cudnnGetConvolutionForwardWorkspaceSize failed: %s\n", cudnnGetErrorString(err));
         exit(1);
     }
-    printf("workSpaceSizeInBytes: %ld\n", workSpaceSizeInBytes);
+    // printf("workSpaceSizeInBytes: %ld\n", workSpaceSizeInBytes);
     cudaMalloc(&workSpace, workSpaceSizeInBytes);
     const float alpha = 1.0;
     const float beta = 0.0;

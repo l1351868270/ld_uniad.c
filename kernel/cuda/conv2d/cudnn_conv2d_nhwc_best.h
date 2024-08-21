@@ -168,7 +168,7 @@ double cudnn_conv2d(T * y, T * x, const T * w, int N, int H, int W, int C,
         if (perf.status == CUDNN_STATUS_SUCCESS) {
             // if (perf.determinism == CUDNN_DETERMINISTIC) {
                 result.push_back(perf);
-                printf("%d: %ld\n", perf.algo, perf.memory);
+                // printf("%d: %ld\n", perf.algo, perf.memory);
             // }
         }
     }

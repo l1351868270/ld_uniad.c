@@ -1,3 +1,17 @@
+# environment
+```
+conda create -n kittens python=3.11
+conda activate kittens
+conda install cuda==12.4.0 -c nvidia
+conda install cudnn=9.1.1.17
+conda install cmake=3.26.4
+pip install nvidia_cudnn_frontend==1.6.1
+conda install pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia
+
+rm -rf $(python -c "import sys; import os; print(os.path.dirname(sys.executable)+'/ld')")
+python -c "import sys;import os;print(f'{os.path.dirname(sys.executable)}/python{sys.version_info.major}.{sys.version_info.minor}/site-packages/include')"
+```
+
 # conv2d
 [The Indirect Convolution Algorithm](https://arxiv.org/pdf/1907.02129)
 
