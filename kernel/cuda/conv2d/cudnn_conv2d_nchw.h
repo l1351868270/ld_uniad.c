@@ -31,6 +31,7 @@ void cuda_cudnn_conv2d_nchw(cudnnHandle_t * handle,
                                 *wDesc, w, 
                                 *convDesc, CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM, nullptr, 0, beta, 
                                 *yDesc, y);
+        
         if (err != CUDNN_STATUS_SUCCESS) {
             printf("cudnnConvolutionForward failed: %s\n", cudnnGetErrorString(err));
             exit(1);
