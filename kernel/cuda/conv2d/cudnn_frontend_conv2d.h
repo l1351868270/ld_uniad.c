@@ -18,7 +18,7 @@ double cudnn_conv2d(T * y, T * x, const T * w, int N, int H, int W, int C,
     namespace fe = cudnn_frontend;
     auto build_new_graph = [=](cudnnHandle_t handle) {
         auto graph = std::make_shared<fe::graph::Graph>();
-        graph->set_io_data_type(fe::DataType_t::HALF).set_compute_data_type(fe::DataType_t::FLOAT);
+        graph->set_io_data_type(fe::DataType_t::HALF).set_compute_data_type(fe::DataType_t::HALF);
 
         auto X = graph->tensor(fe::graph::Tensor_attributes()
                                     .set_name("image")

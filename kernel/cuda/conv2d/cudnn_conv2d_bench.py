@@ -1,4 +1,4 @@
-# ncu -f --set full -o build/bench_conv2d_report python cudnn_conv2d_test.py
+# ncu -f --set full --call-stack -o build/bench_conv2d_report python cudnn_conv2d_test.py
 import sys
 import os
 import numpy as np
@@ -31,14 +31,8 @@ def avg_time_function(func, A, repeat=10):
 
 def manual_avg_time_function_help(func, y, x, w, pad_h, pad_w, U, V, dilation_h, dilation_w):
     y.fill_(0.0)
-    start = torch.cuda.Event(enable_timing=True)
-    end = torch.cuda.Event(enable_timing=True)
-    start.record()
-    func(y, x, w, pad_h, pad_w, U, V, dilation_h, dilation_w)
-    end.record()
-    torch.cuda.synchronize()
-    return start.elapsed_time(end)
-
+    used_time = func(y, x, w, pad_h, pad_w, U, V, dilation_h, dilation_w)
+    return used_time
 
 def manual_avg_time_function(func, y, x, w, pad_h, pad_w, U, V, dilation_h, dilation_w, repeat=10):
     # Warmup
@@ -96,8 +90,8 @@ def bench_conv2d():
     R = 3
     S = 3
 
-    pad_h = 1
-    pad_w = 1
+    pad_h = 0
+    pad_w = 0
     U = 1
     V = 1
     dilation_h = 1
@@ -150,11 +144,11 @@ def bench_conv2d():
     used_time = avg_time_function(conv2d, x, repeat)
     print(f"torch.conv2d channels_last {N}x{C}x{H}x{W} {K}x{C}x{R}x{S} {N}x{K}x{P}x{Q}, arithmetic_intensity:{arithmetic_intensity:.3f}, im2col MNK: {v_M}x{v_N}x{v_K} GFLOPs:{gflops:.3f}, used_time:{used_time:.3f}ms, TFLOPS:{gflops/used_time:.3f}")
 
-    # y.fill_(0.0)
-    # manual_conv2d.cudnn_conv2d_nhwc(y, x, w, pad_h, pad_w, U, V, dilation_h, dilation_w)
-    # # print(f"cudnn_conv2d_nhwc: {y_nhwc}")
-    # used_time = manual_avg_time_function(manual_conv2d.cudnn_conv2d_nhwc, y, x, w, pad_h, pad_w, U, V, dilation_h, dilation_w, repeat)
-    # print(f"cudnn_conv2d_nhwc {N}x{C}x{H}x{W} {K}x{C}x{R}x{S} {N}x{K}x{P}x{Q}, arithmetic_intensity:{arithmetic_intensity:.3f}, im2col MNK: {v_M}x{v_N}x{v_K} GFLOPs:{gflops:.3f}, used_time:{used_time:.3f}ms, TFLOPS:{gflops/used_time:.3f}")
+    y.fill_(0.0)
+    manual_conv2d.cudnn_conv2d_nhwc(y, x, w, pad_h, pad_w, U, V, dilation_h, dilation_w)
+    # print(f"cudnn_conv2d_nhwc: {y_nhwc}")
+    used_time = manual_avg_time_function(manual_conv2d.cudnn_conv2d_nhwc, y, x, w, pad_h, pad_w, U, V, dilation_h, dilation_w, repeat)
+    print(f"cudnn_conv2d_nhwc {N}x{C}x{H}x{W} {K}x{C}x{R}x{S} {N}x{K}x{P}x{Q}, arithmetic_intensity:{arithmetic_intensity:.3f}, im2col MNK: {v_M}x{v_N}x{v_K} GFLOPs:{gflops:.3f}, used_time:{used_time:.3f}ms, TFLOPS:{gflops/used_time:.3f}")
 
     y.fill_(0.0)
     manual_conv2d.cudnn_conv2d_nhwc_best(y, x, w, pad_h, pad_w, U, V, dilation_h, dilation_w)

@@ -1,4 +1,4 @@
-// ncu -f --set full -o build/cudnn_frontend_report ./build/cudnn_frontend_test
+// ncu -f --set full --call-stack  -o build/cudnn_frontend_report ./build/cudnn_frontend_test
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>

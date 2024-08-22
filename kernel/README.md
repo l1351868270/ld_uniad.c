@@ -7,9 +7,10 @@ conda install cudnn=9.1.1.17
 conda install cmake=3.26.4
 pip install nvidia_cudnn_frontend==1.6.1
 conda install pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia
+conda install ninja=1.10.2
 
 rm -rf $(python -c "import sys; import os; print(os.path.dirname(sys.executable)+'/ld')")
-python -c "import sys;import os;print(f'{os.path.dirname(sys.executable)}/python{sys.version_info.major}.{sys.version_info.minor}/site-packages/include')"
+
 ```
 
 # conv2d

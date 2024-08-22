@@ -31,13 +31,8 @@ def avg_time_function(func, A, repeat=10):
 
 def manual_avg_time_function_help(func, y, x, w, pad_h, pad_w, U, V, dilation_h, dilation_w):
     y.fill_(0.0)
-    start = torch.cuda.Event(enable_timing=True)
-    end = torch.cuda.Event(enable_timing=True)
-    start.record()
-    func(y, x, w, pad_h, pad_w, U, V, dilation_h, dilation_w)
-    end.record()
-    torch.cuda.synchronize()
-    return start.elapsed_time(end)
+    used_time = func(y, x, w, pad_h, pad_w, U, V, dilation_h, dilation_w)
+    return used_time
 
 
 def manual_avg_time_function(func, y, x, w, pad_h, pad_w, U, V, dilation_h, dilation_w, repeat=10):
