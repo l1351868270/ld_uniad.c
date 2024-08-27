@@ -3,7 +3,7 @@ CONDA_PACKAGES_INCLUDE = $(shell python -c "import sys;import os;print(f'{os.pat
 $(info conda site-packages include is: $(CONDA_PACKAGES_INCLUDE))
 CONDA_ENV_INCLUDE = $(shell python -c "import sys;import os;print(f'{os.path.dirname(sys.executable)}/../include')")
 $(info conda env include is: $(CONDA_ENV_INCLUDE))
-CC_INCLUDES = -I../ld_kittens  -I../cutlass/include -I../cutlass/tools/util/include -I$(CONDA_PACKAGES_INCLUDE)
+CC_INCLUDES = -I../ld_kittens  -I../cutlass/include -I../cutlass/tools/util/include -I$(CONDA_PACKAGES_INCLUDE) 
 CC_LFLAGS = -L$(CONDA_ENV_INCLUDE) -lcudart -lcublas -lcudnn
 
 .PHONY: cudnn_conv2d_test
