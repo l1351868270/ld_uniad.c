@@ -16,8 +16,10 @@ def conv2d_ai(N, C, H, W, K, R, S, U, V, pad_h, pad_w, dila_h, dila_w, name="", 
     ops = 2 * v_M * v_N * v_K
     bytes = 2 * (N * C * H * W + K * C * R * S + N * K * P * Q)
     ai = ops / bytes
+    v_bytes = 2 * (v_M * v_K + v_N * v_K + v_M * v_N)
+    v_ai = ops / v_bytes
     if verbose:
-        print(f'[conv2d][{name}] {N}x{C}x{H}x{W} {K}x{C}x{R}x{S} -> {N}x{K}x{P}x{Q} FLOPs: {ops}, Bytes: {bytes}, Arithmetic Intensity: {ai:.5f}')
+        print(f'[conv2d][{name}] {N}x{C}x{H}x{W} {K}x{C}x{R}x{S} -> {N}x{K}x{P}x{Q} FLOPs: {ops}, Bytes: {bytes}, Arithmetic Intensity: {ai:.5f}--[{v_M}x{v_K} {v_K}x{v_N} {v_M}x{v_N} FLOPs: {ops}, Bytes: {v_bytes}, Arithmetic Intensity: {v_ai:.5f}]')
     MACs = N * C * P * Q * U * V * KH * KW
     return P, Q, ops, bytes, ai
 
@@ -37,8 +39,8 @@ def resnet101_conv1_ai(N=1, H=224, W=224):
 def resnet101_ai():
     # (conv1): Conv2d(3, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3)
     N = 1
-    H = 224
-    W = 224
+    H = 928
+    W = 1600
     H, W, _, _, _= resnet101_conv1_ai(N=N, H=H, W=W)
     # (maxpool): MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False)
     pad_h = 1; pad_w = 1; dila_h = 1; dila_w = 1; R = 3; S = 3; U = 2; V = 2
@@ -303,6 +305,6 @@ def resnet101_ai():
 if __name__ == '__main__':
     flops_3090 = 1695 * 10 ** 6 * 10496 * 2 * 2 # tensor core accumulate float32
     bandwidth_3090 = 936 * 1024 * 1024 * 1024
-    print(f'rtx 3090 ai: TFLOPs:{flops_3090}, bandwidth:{bandwidth_3090}, {flops_3090 / bandwidth_3090:.4f}')
+    print(f'rtx 3090 ai: TFLOPs:{flops_3090}, bandwidth:{bandwidth_3090}, {flops_3090 / bandwidth_3090:.4f}, FLOAPS/cycle:{10496 * 2 * 2}')
     resnet101_ai()
 
