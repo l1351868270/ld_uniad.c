@@ -22,6 +22,7 @@ rm -rf $(python -c "import sys; import os; print(os.path.dirname(sys.executable)
 
 [MEC: Memory-efficient Convolution for Deep Neural Network](https://arxiv.org/pdf/1706.06873)
 
+[Performance Evaluation of cuDNN Convolution Algorithms on NVIDIA Volta GPUs](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=8721631)
 
 # cuda
 [WhoSays Elephants Can’t Run: Bringing Large Scale MoE Models into Cloud Scale Production](https://arxiv.org/abs/2211.10017)
